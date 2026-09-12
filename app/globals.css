@@ -18,5 +18,6 @@
   --color-ink-muted: #6b7280;
   --color-up: #0f8a5f;
   --color-down: #c0392b;
+  --color-down-pale: #fdeceb;
   --font-sans: var(--font-noto-sans-jp), "Hiragino Sans", "Yu Gothic", sans-serif;
 }

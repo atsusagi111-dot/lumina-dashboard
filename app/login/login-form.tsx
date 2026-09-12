@@ -5,12 +5,19 @@ import { signIn, type LoginState } from "./actions";
 
 const INITIAL_STATE: LoginState = { error: null };
 
-export function LoginForm() {
+type Props = {
+  /** ログイン後に戻る先。proxy.ts が ?next= に入れてくれる */
+  nextPath?: string;
+};
+
+export function LoginForm({ nextPath = "/" }: Props) {
   // useActionState: 送信結果（エラー文）と送信中かどうかを React が管理してくれる仕組み
   const [state, formAction, isPending] = useActionState(signIn, INITIAL_STATE);
 
   return (
     <form action={formAction} className="space-y-4">
+      <input type="hidden" name="next" value={nextPath} />
+
       <div>
         <label htmlFor="email" className="block text-sm font-medium text-ink">
           メールアドレス
@@ -40,7 +47,7 @@ export function LoginForm() {
       </div>
 
       {state.error && (
-        <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-down">
+        <p role="alert" className="rounded-md bg-down-pale px-3 py-2 text-sm text-down">
           {state.error}
         </p>
       )}

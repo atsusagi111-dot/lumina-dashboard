@@ -1,17 +1,22 @@
 -- ============================================================
--- 0001_init.sql — テーブルの作成
+-- 0001_init.sql — テーブルの作成と RLS の有効化
 -- Supabase の SQL Editor に貼り付けて Run してください。
 -- 何度実行しても壊れないよう、既にある場合は作らない書き方にしています。
+--
+-- 注意：create table if not exists は「既にあるテーブルに列を足す」ことはしません。
+-- 後からスキーマを変えたくなったら、このファイルを書き換えるのではなく
+-- 0003_xxx.sql を新しく作って alter table を書いてください。
 -- ============================================================
 
 -- 取り込みログ：いつ・どのスプレッドシートから・何行取り込んだかの記録
 create table if not exists public.uploads (
   id uuid primary key default gen_random_uuid(),
-  -- 取り込んだ人。auth.users は Supabase がログイン用に持っているテーブル
-  user_id uuid not null references auth.users (id) on delete cascade,
+  -- 取り込んだ人。auth.users は Supabase がログイン用に持っているテーブル。
+  -- default auth.uid() を付けておくと、アプリ側で入れ忘れても自分の ID が入る
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   spreadsheet_id text not null,
   sheet_name text not null,
-  row_count integer not null,
+  row_count integer not null check (row_count >= 0),
   uploaded_at timestamptz not null default now()
 );
 
@@ -25,15 +30,17 @@ create table if not exists public.sales_data (
   product_name text not null,
   category text,
   sku text,
-  quantity integer not null,
-  revenue numeric not null,
-  cost numeric not null
+  -- check（制約）を付けると、マイナスの数量や金額が保存される前に弾かれる。
+  -- 人が手で編集するスプレッドシートが元データなので、DB 側で歯止めをかけておく
+  quantity integer not null check (quantity >= 0),
+  revenue numeric(14, 2) not null check (revenue >= 0),
+  cost numeric(14, 2) not null check (cost >= 0)
 );
 
--- AI 分析レポート：1 回の取り込みに対して 1 件
+-- AI 分析レポート：1 回の取り込みに対して 1 件（unique で重複を防ぐ）
 create table if not exists public.reports (
   id uuid primary key default gen_random_uuid(),
-  upload_id uuid not null references public.uploads (id) on delete cascade,
+  upload_id uuid not null unique references public.uploads (id) on delete cascade,
   summary text not null,
   highlights jsonb,
   concerns jsonb,
@@ -41,9 +48,17 @@ create table if not exists public.reports (
   generated_at timestamptz not null default now()
 );
 
--- インデックス：よく検索する列に付けておくと集計が速くなる
-create index if not exists sales_data_upload_id_idx on public.sales_data (upload_id);
-create index if not exists sales_data_order_date_idx on public.sales_data (order_date);
-create index if not exists sales_data_category_idx on public.sales_data (category);
+-- インデックス：よく検索する列に付けておくと集計が速くなる。
+-- 月次集計は「ある取り込みの、ある期間」で引くので 2 列まとめた索引が効く
+create index if not exists sales_data_upload_id_order_date_idx
+  on public.sales_data (upload_id, order_date);
 create index if not exists uploads_user_id_idx on public.uploads (user_id);
-create index if not exists reports_upload_id_idx on public.reports (upload_id);
+-- reports.upload_id は unique 制約が自動で索引を作るため、別途の索引は不要
+
+-- RLS（行ごとのアクセス制限）をここで有効にしておく。
+-- 理由：Supabase は新しいテーブルに既定で「誰でも読み書き」の権限を与える。
+-- RLS を有効にすると、ポリシーが無いうちは全員拒否という安全な状態になる。
+-- 実際に誰が何をできるかは 0002_rls.sql で決める。
+alter table public.uploads enable row level security;
+alter table public.sales_data enable row level security;
+alter table public.reports enable row level security;

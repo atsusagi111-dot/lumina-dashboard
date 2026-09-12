@@ -7,10 +7,8 @@
 // コメントの警告どおりに扱うこと。
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isPublicPath } from "@/lib/auth/paths";
 import { supabasePublishableKey, supabaseUrl } from "@/lib/env";
-
-/** ログインしていなくても開いてよいパス */
-const PUBLIC_PATHS = ["/login", "/auth"];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -40,22 +38,37 @@ export async function updateSession(request: NextRequest) {
   // また getSession() は cookie を信用するだけなので、サーバー側の判定には使わない。
   const { data } = await supabase.auth.getClaims();
   const isLoggedIn = Boolean(data?.claims);
-  const isPublicPath = PUBLIC_PATHS.some((path) => request.nextUrl.pathname.startsWith(path));
+  const { pathname } = request.nextUrl;
 
-  if (!isLoggedIn && !isPublicPath) {
+  if (!isLoggedIn && !isPublicPath(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    return NextResponse.redirect(url);
+    // ログイン後に元のページへ戻れるよう、行き先を覚えておく
+    url.searchParams.set("next", pathname);
+    return redirectKeepingCookies(url, supabaseResponse);
   }
 
   // ログイン済みの人がログイン画面を開いたらトップに戻す
-  if (isLoggedIn && request.nextUrl.pathname.startsWith("/login")) {
+  if (isLoggedIn && isPublicPath(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
-    return NextResponse.redirect(url);
+    url.search = "";
+    return redirectKeepingCookies(url, supabaseResponse);
   }
 
   // supabaseResponse をそのまま返すこと。別の応答を作って返すと cookie が食い違い、
   // ブラウザとサーバーでログイン状態がずれてしまう。
   return supabaseResponse;
+}
+
+/**
+ * 転送するときも、Supabase が更新したログイン cookie を必ず引き継ぐ。
+ * これを忘れると、期限が更新された直後の人が突然ログアウトされる。
+ */
+function redirectKeepingCookies(url: URL, supabaseResponse: NextResponse): NextResponse {
+  const response = NextResponse.redirect(url);
+  for (const cookie of supabaseResponse.cookies.getAll()) {
+    response.cookies.set(cookie);
+  }
+  return response;
 }

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Noto_Sans_JP } from "next/font/google";
+import { Suspense } from "react";
+import { HeaderUser } from "@/components/header-user";
 import { SiteHeader } from "@/components/site-header";
-import { createClient } from "@/lib/supabase/server";
 import "./globals.css";
 
 // 日本語フォント。CSS 変数 --font-noto-sans-jp として globals.css から参照する
@@ -16,17 +17,16 @@ export const metadata: Metadata = {
   description: "月次の売上・粗利・リピート率を可視化し、AI が翌月のアクションを提案します。",
 };
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  // ヘッダーにメールアドレスを出すために、ログイン中の人を取得する。
-  // getClaims() は署名を検証するので、cookie を偽装されても通らない。
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  const userEmail = typeof data?.claims?.email === "string" ? data.claims.email : null;
-
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ja" className={`${notoSansJp.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col bg-surface text-ink">
-        <SiteHeader userEmail={userEmail} />
+        <SiteHeader>
+          {/* ログイン情報の取得を待つ間もページ本文を表示できるよう Suspense で包む */}
+          <Suspense fallback={null}>
+            <HeaderUser />
+          </Suspense>
+        </SiteHeader>
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">{children}</main>
       </body>
     </html>

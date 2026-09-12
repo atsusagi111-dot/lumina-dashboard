@@ -48,11 +48,11 @@ Google スプレッドシートに貼った売上データを読み込み、3 �
 
 ## 2. 画面イメージ
 
-Task 1 時点のトップページ（Task 5 でダッシュボードに差し替え）。
+Task 2 時点の画面（Task 5 でダッシュボードに差し替え）。
 
-| PC | スマホ（375px） |
+| ログイン後のトップ（PC） | ログイン画面（スマホ 375px） |
 | --- | --- |
-| ![PC](docs/images/task1-home-desktop.jpg) | ![スマホ](docs/images/task1-home-mobile.png) |
+| ![PC](docs/images/task2-home-desktop.jpg) | ![スマホ](docs/images/task2-login-mobile.png) |
 
 ## 3. 技術構成図
 
@@ -146,7 +146,7 @@ pnpm dev                            # http://localhost:3000 を開く
 2. 次の 3 つをコピーする
    - Project URL
    - publishable key（`sb_publishable_...` で始まる。ブラウザに出てよい鍵）
-   - secret key（`sb_secret_...` で始まる。**絶対に公開しない鍵**）
+   - secret key（`sb_secret_...` で始まる。**絶対に公開しない鍵**。使い始めるのは Task 6 以降なので、今は空でも動きます）
 3. プロジェクト直下で `Copy-Item .env.example .env.local` を実行し、3 つを貼り付ける
 4. 開発サーバーを起動していたら再起動する（`.env.local` は起動時に読まれるため）
 
@@ -156,6 +156,7 @@ pnpm dev                            # http://localhost:3000 を開く
 1. 左メニュー **SQL Editor** →「New query」
 2. `supabase/migrations/0001_init.sql` の中身を全部貼り付けて **Run**
 3. 同じ手順で `supabase/migrations/0002_rls.sql` も **Run**
+   - 古い `0001_init.sql` を先に実行していた場合は、`0003_constraints.sql` も Run してください（制約の追加分）
 4. 左メニュー **Table Editor** に `uploads` / `sales_data` / `reports` の 3 つが出ていれば成功
 
 **④ 利用者のアカウントを作る（招待制）**
@@ -256,12 +257,13 @@ worktree の作成・片付けコマンドは [CLAUDE.md §1](CLAUDE.md) を参�
 app/                  画面（App Router）。layout.tsx = 共通の枠、page.tsx = トップページ、globals.css = ブランドカラー
 app/login/            ログイン画面と Server Action（ログイン・ログアウト）
 lib/env.ts            環境変数の読み込み。未設定なら日本語で案内して止める
-lib/supabase/         Supabase 接続（client = ブラウザ用、server = サーバー用、proxy = ログイン判定）
+lib/auth/             ログインが要るかの判定、エラー文の日本語化
+lib/supabase/         Supabase 接続（client = ブラウザ用、server = サーバー用、proxy = ログイン判定、require-user = 認可チェック）
 proxy.ts              全ページの表示前に走る入口（Next.js 16 で middleware.ts から改名）
 supabase/migrations/  DB のテーブル定義と RLS 設定の SQL
 public/               画像などそのまま配信するファイル
 components/           UI 部品（site-header.tsx など）
-tests/                テスト。setup.ts（共通準備）、smoke.test.tsx（動作確認）、fixtures/sample-sales.csv（テストで使う売上データ）
+tests/                テスト一式。fixtures/sample-sales.csv（テストで使う売上データ）
 case8-sales-sample.csv 受領時の原本。内容は fixtures と同じで、こちらは変更しない
 docs/                 補足ドキュメント（正解値、画面イメージ）
 .claude/              commands（/code-review, /simplify）、hooks、skills、settings.json
@@ -296,6 +298,8 @@ Task 8 で確定。目安：Vercel Hobby（0 円）+ Supabase Free（0 円）+ O
 | ログインで「メールアドレスまたはパスワードが違います」と出る | Supabase の Authentication → Users にそのアカウントがあるか確認する。作成時に Auto Confirm User を付け忘れると、正しいパスワードでもログインできない |
 | ログインしてもすぐログアウトされる | `lib/supabase/proxy.ts` の `getClaims()` の前後に処理を足していないか確認する（公式が警告している既知の落とし穴） |
 | Table Editor にテーブルが出ない | SQL Editor で `0001_init.sql` を Run したか確認する。エラーが出ていれば内容を読む |
+| ページが 404 になる | 日本語の「ページが見つかりません」が出れば正常動作。URL を確認する |
+| `Server Actions must be async functions` | `"use server"` を付けたファイルでは async 関数しか公開できない。普通の関数は `lib/` に移す |
 | `pnpm install` 後に `npm warn allow-scripts` と出る | 警告であってエラーではない。無視してよい |
 | `next dev` を実行すると CLAUDE.md に英語のブロックが追記される | Next.js 16 の機能（AI 向けの注意書き）。そのままコミットしてよい |
 | 型エラー `Cannot find name 'LayoutProps'` | Next.js が生成する型がまだ無い状態。`pnpm type-check` は `next typegen` で先に型を作るので、単体で `tsc` を実行したときだけ起きる |

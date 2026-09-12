@@ -12,6 +12,7 @@ export async function createClient() {
       getAll() {
         return cookieStore.getAll();
       },
+      // 第 2 引数の headers は受け取っていない（Server Action は POST なのでキャッシュ制御が不要なため）
       setAll(cookiesToSet) {
         try {
           for (const { name, value, options } of cookiesToSet) {
