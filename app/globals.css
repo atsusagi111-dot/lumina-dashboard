@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+/*
+  ブランドカラーの登録（Tailwind 4 は設定ファイルではなく、ここに @theme で書く）
+  例：bg-navy / text-navy / border-navy-light のようなクラスが使えるようになる
+  グラフ（Recharts）でも fill="var(--color-navy)" のように同じ変数を使う（色の定義はここ 1 箇所だけ）
+*/
+@theme {
+  --color-navy: #1a2e5c;
+  --color-navy-light: #3d5a99;
+  --color-navy-pale: #e8edf6;
+  --color-surface: #ffffff;
+  --color-ink: #1f2937;
+  --color-ink-muted: #6b7280;
+  --color-up: #0f8a5f;
+  --color-down: #c0392b;
+  --font-sans: var(--font-noto-sans-jp), "Hiragino Sans", "Yu Gothic", sans-serif;
+}
+
+body {
+  background: var(--color-surface);
+  color: var(--color-ink);
+}
