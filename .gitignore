@@ -28,3 +28,9 @@ next-env.d.ts
 
 # Claude Code のローカル設定（個人用。共有しない）
 .claude/settings.local.json
+
+# Next.js 生成物・ログ
+/build
+*.pem
+.pnpm-debug.log*
+npm-debug.log*
