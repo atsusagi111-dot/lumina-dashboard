@@ -21,3 +21,25 @@
   --color-down-pale: #fdeceb;
   --font-sans: var(--font-noto-sans-jp), "Hiragino Sans", "Yu Gothic", sans-serif;
 }
+
+/*
+  画面をまたいで使う見た目の部品。
+  同じクラス列を各画面にコピーすると、ブランド色を変えるときに直し漏れが出るため、ここ 1 箇所で定義する。
+*/
+@layer components {
+  .field-label {
+    @apply block text-sm font-medium text-ink;
+  }
+
+  .field-input {
+    @apply mt-1 w-full rounded-md border border-navy-pale px-3 py-2 text-ink outline-none focus:border-navy-light focus:ring-2 focus:ring-navy-pale;
+  }
+
+  .btn-primary {
+    @apply rounded-md bg-navy px-4 py-2 font-medium text-white transition hover:bg-navy-light disabled:opacity-60;
+  }
+
+  .card {
+    @apply rounded-lg border border-navy-pale bg-surface p-6 sm:p-10;
+  }
+}

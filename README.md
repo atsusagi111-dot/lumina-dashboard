@@ -90,7 +90,7 @@ GitHub → Push → GitHub Actions（型チェック + Lint + テスト）→ Ve
 | 0 | 開発環境・ルールの整備（CLAUDE.md / hooks / SKILL.md / `.env.example` / README 骨子） | setup | ✅ | 2026-09-12 |
 | 1 | Next.js + Tailwind + pnpm の土台、ブランドカラー、`lint` / `type-check`（`tsc --noEmit`）/ `test` スクリプト | scaffold | ✅ | 2026-09-12 |
 | 2 | Supabase 接続・DB スキーマ・ログイン画面・RLS | supabase | ✅ | 2026-09-12 |
-| 3 | Google スプレッドシート取り込み + バリデーション | sheets-import | ⬜ | |
+| 3 | Google スプレッドシート取り込み + バリデーション | sheets-import | ✅ | 2026-09-12 |
 | 4 | KPI 集計ロジック（純粋関数 + ユニットテスト） | kpi | ⬜ | |
 | 5 | ダッシュボード UI（KPI カード・グラフ・ランキング） | dashboard-ui | ⬜ | |
 | 6 | OpenAI 分析コメント + Snapshot テスト | ai-analysis | ⬜ | |
@@ -212,13 +212,34 @@ RLS はその内側にあるもう 1 枚の壁で、アプリにバグがあっ�
 
 ## 6. スプレッドシートの準備方法
 
-この節がスプレッドシートの列仕様と共有手順の唯一の正です（詳しい手順は Task 3 で追記）。
-1. 1 行目はヘッダー。列は次の 8 列をこの順・この名前で：
-   `order_date, customer_id, product_name, category, sku, quantity, revenue, cost`
-   - `order_date` は `YYYY-MM-DD`、`quantity` は 1 以上の整数、`revenue` / `cost` は円（整数）
-   - `customer_id` は空でも可（匿名購入。リピート率の計算からは除外）
-2. 「共有」からサービスアカウントのメールアドレスを **閲覧者** として追加
-3. スプレッドシートの URL をダッシュボードに貼る
+この節がスプレッドシートの列仕様と共有手順の唯一の正です。クライアントにはこの節を案内してください。
+
+### ① 列を用意する
+1 行目はヘッダー。次の 8 列を **この順・この名前** で並べます。
+
+| 列名 | 必須 | 中身 | 受け付ける書き方 |
+| --- | --- | --- | --- |
+| `order_date` | 必須 | 注文日 | `2025-11-03` / `2025/11/3` |
+| `customer_id` | 任意 | 顧客 ID | 空なら匿名購入としてリピート率の計算から除外 |
+| `product_name` | 必須 | 商品名 | |
+| `category` | 任意 | カテゴリ | |
+| `sku` | 任意 | 品番 | |
+| `quantity` | 必須 | 数量 | 1 以上の整数 |
+| `revenue` | 必須 | 売上（円） | `19800` / `19,800` / `¥19,800` |
+| `cost` | 必須 | 原価（円） | 同上 |
+
+- 完全に空の行は自動で飛ばします。
+- **1 行でも問題があれば、何も保存せずに「何行目の何がおかしいか」を表示します。** 一部だけ保存すると月次の合計が静かにずれるためです。
+
+### ② サービスアカウントに共有する
+スプレッドシート右上の「共有」から、`.env.local` の `GOOGLE_SERVICE_ACCOUNT_EMAIL` に設定したアドレスを **閲覧者** として追加します。
+このアドレスは取り込み画面にも表示されるので、そこからコピーできます。
+
+### ③ 取り込む
+ログインして「取り込み」画面を開き、スプレッドシートの URL を貼って「取り込む」を押します。
+URL ではなくシート ID を直接貼っても構いません。読み込むのは 1 枚目のシートの A〜H 列です。
+
+同じシートを何度取り込んでも構いません。そのたびに新しい取り込み記録として追加され、履歴が残ります。
 
 サンプルデータと集計の正解値は [docs/sample-data.md](docs/sample-data.md) を参照。
 
@@ -269,6 +290,8 @@ worktree の作成・片付けコマンドは [CLAUDE.md §1](CLAUDE.md) を参�
 ```
 app/                  画面（App Router）。layout.tsx = 共通の枠、page.tsx = トップページ、globals.css = ブランドカラー
 app/login/            ログイン画面と Server Action（ログイン・ログアウト）
+app/import/           取り込み画面と Server Action（読み込み・検査・保存）
+lib/sheets/           スプレッドシートの ID 取り出し・読み込み・検査
 lib/env.ts            環境変数の読み込み。未設定なら日本語で案内して止める
 lib/auth/             ログインが要るかの判定、エラー文の日本語化
 lib/supabase/         Supabase 接続（client = ブラウザ用、server = サーバー用、proxy = ログイン判定、require-user = 認可チェック）
@@ -312,7 +335,12 @@ Task 8 で確定。目安：Vercel Hobby（0 円）+ Supabase Free（0 円）+ O
 | ログインしてもすぐログアウトされる | `lib/supabase/proxy.ts` の `getClaims()` の前後に処理を足していないか確認する（公式が警告している既知の落とし穴） |
 | Table Editor にテーブルが出ない | SQL Editor で `0001_init.sql` を Run したか確認する。エラーが出ていれば内容を読む |
 | ページが 404 になる | 日本語の「ページが見つかりません」が出れば正常動作。URL を確認する |
-| `Server Actions must be async functions` | `"use server"` を付けたファイルでは async 関数しか公開できない。普通の関数は `lib/` に移す |
+| `Server Actions must be async functions` / `A "use server" file can only export async functions` | `"use server"` を付けたファイルでは async 関数しか公開できない。型・定数・普通の関数は `lib/` に移す |
+| 取り込みで「スプレッドシートを開けませんでした」と出る | URL が正しいか、取り込み画面に表示されているアドレスに「閲覧者」で共有したかを確認する |
+| 取り込みで「Google の認証に失敗しました」と出る | `.env.local` の `GOOGLE_PRIVATE_KEY` を確認する。`\n` を含む 1 行のまま、全体をダブルクォートで囲む |
+| 日付が「日付として読めません」と出る | `2025-11-03` か `2025/11/3` の形にする。Excel 由来の `2025年11月3日` などは読めない |
+| 金額が「大きすぎます」「小数は 2 桁まで」と出る | 保存できる上限は約 1 兆円、小数は 2 桁まで。セルの書式ではなく値そのものを確認する |
+| 数量が「整数ではありません」と出るが数字に見える | `1e3` のような指数表記や全角数字は受け付けない。半角の整数で入力する |
 | `pnpm install` 後に `npm warn allow-scripts` と出る | 警告であってエラーではない。無視してよい |
 | `next dev` を実行すると CLAUDE.md に英語のブロックが追記される | Next.js 16 の機能（AI 向けの注意書き）。そのままコミットしてよい |
 | 型エラー `Cannot find name 'LayoutProps'` | Next.js が生成する型がまだ無い状態。`pnpm type-check` は `next typegen` で先に型を作るので、単体で `tsc` を実行したときだけ起きる |

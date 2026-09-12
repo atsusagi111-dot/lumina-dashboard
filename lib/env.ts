@@ -28,3 +28,19 @@ export function supabasePublishableKey(): string {
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   );
 }
+
+/** Google サービスアカウントのメールアドレス（スプレッドシートの共有先） */
+export function googleServiceAccountEmail(): string {
+  return required("GOOGLE_SERVICE_ACCOUNT_EMAIL", process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL);
+}
+
+/**
+ * Google サービスアカウントの秘密鍵。そのまま使える形（本物の改行入り）で返す。
+ *
+ * .env.local には 1 行で書く必要があるため、改行が「\n」という 2 文字で入っている。
+ * ここで本物の改行に戻しておかないと、鍵として読めず認証に失敗する。
+ * 呼び出し側で戻す形にすると、忘れたときに本番だけ落ちるので、この関数の中で済ませる。
+ */
+export function googlePrivateKey(): string {
+  return required("GOOGLE_PRIVATE_KEY", process.env.GOOGLE_PRIVATE_KEY).replace(/\\n/g, "\n");
+}

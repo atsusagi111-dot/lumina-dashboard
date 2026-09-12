@@ -19,7 +19,7 @@ export function LoginForm({ nextPath }: Props) {
       <input type="hidden" name="next" value={nextPath} />
 
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-ink">
+        <label htmlFor="email" className="field-label">
           メールアドレス
         </label>
         <input
@@ -28,12 +28,12 @@ export function LoginForm({ nextPath }: Props) {
           type="email"
           autoComplete="email"
           required
-          className="mt-1 w-full rounded-md border border-navy-pale px-3 py-2 text-ink outline-none focus:border-navy-light focus:ring-2 focus:ring-navy-pale"
+          className="field-input"
         />
       </div>
 
       <div>
-        <label htmlFor="password" className="block text-sm font-medium text-ink">
+        <label htmlFor="password" className="field-label">
           パスワード
         </label>
         <input
@@ -42,7 +42,7 @@ export function LoginForm({ nextPath }: Props) {
           type="password"
           autoComplete="current-password"
           required
-          className="mt-1 w-full rounded-md border border-navy-pale px-3 py-2 text-ink outline-none focus:border-navy-light focus:ring-2 focus:ring-navy-pale"
+          className="field-input"
         />
       </div>
 
@@ -55,7 +55,7 @@ export function LoginForm({ nextPath }: Props) {
       <button
         type="submit"
         disabled={isPending}
-        className="w-full rounded-md bg-navy px-4 py-2 font-medium text-white transition hover:bg-navy-light disabled:opacity-60"
+        className="btn-primary w-full"
       >
         {isPending ? "ログイン中…" : "ログイン"}
       </button>

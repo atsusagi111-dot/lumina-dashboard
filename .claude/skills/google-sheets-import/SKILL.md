@@ -28,20 +28,12 @@ description: Google スプレッドシートから売上データを読み込み
 
 ## 3. 実装手順（`lib/sheets/`）
 1. **URL からシート ID を抽出**：`https://docs.google.com/spreadsheets/d/<ID>/edit...` の `<ID>` 部分。正規表現 `/\/d\/([a-zA-Z0-9-_]+)/`。ID を直接入力された場合もそのまま受け付ける
-2. **読み込み**：`googleapis` の `google.auth.JWT`（サービスアカウント認証）→ `sheets.spreadsheets.values.get({ spreadsheetId, range: "<シート名>!A1:H" })`
+2. **読み込み**：`google-auth-library` の `JWT` で認証トークンを取り、Sheets REST API に `fetch` で問い合わせる（`GET /v4/spreadsheets/{id}/values/{シート名}!A1:H`）
+   - `googleapis` は使わない。Google の全 API を含む巨大なパッケージで、必要なのは認証だけのため
    - スコープは読み取り専用 `https://www.googleapis.com/auth/spreadsheets.readonly`
-   - シート名は既定で 1 枚目（`spreadsheets.get` で取得）。フォームで指定可能にする
+   - シート名は 1 枚目を自動で使う（`fields=sheets.properties.title` で取得）。利用者に選ばせない
 3. **バリデーション**（Zod を使う）：
-   | 列 | 型 | ルール |
-   | --- | --- | --- |
-   | order_date | 文字列 | `YYYY-MM-DD` 形式。`2025/11/03` も受け付けて正規化する |
-   | customer_id | 文字列 | 空可（匿名購入）。空ならリピート率の分母から除外 |
-   | product_name | 文字列 | 必須 |
-   | category | 文字列 | 空可 |
-   | sku | 文字列 | 空可 |
-   | quantity | 整数 | 1 以上 |
-   | revenue | 数値 | 0 以上。`¥` やカンマは除去してから数値化 |
-   | cost | 数値 | 0 以上 |
+   - 各列のルールと受け付ける書き方は **README §6 の表が唯一の正**。実装はそれに従う（ここに再掲しない）
    - ヘッダー行の列名が仕様と一致しない場合は「列名が違います：期待 `sku`、実際 `SKU番号`」のように示す
    - 完全に空の行はスキップする
 4. **エラーメッセージ**は日本語で「行番号 + 列名 + 何が悪いか」を返す
@@ -53,4 +45,4 @@ description: Google スプレッドシートから売上データを読み込み
 ## 4. 確認方法
 - `tests/fixtures/sample-sales.csv` と同じ内容のスプレッドシートを用意し、40 行が取り込まれること
 - わざと `quantity` を文字列にした行を作り、日本語エラーが行番号つきで出ること
-- 共有していないシートの URL を入れたとき「シートが共有されていません。<メール> を閲覧者として共有してください」と出ること
+- 共有していないシートの URL を入れたとき、**共有先のメールアドレスを含む日本語の案内**が出ること（文言そのものは `lib/sheets/fetch-sheet.ts` が持ち主。ここに写経しない）
