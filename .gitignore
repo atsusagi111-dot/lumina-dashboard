@@ -5,10 +5,12 @@ node_modules/
 .next/
 out/
 
-# 環境変数（秘密情報。絶対にコミットしない）
-.env
-.env.local
-.env*.local
+# 環境変数・秘密鍵（絶対にコミットしない）
+.env*
+!.env.example
+# Google Cloud のサービスアカウント鍵
+*service-account*.json
+*credentials*.json
 
 # テスト・カバレッジ
 coverage/

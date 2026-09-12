@@ -4,8 +4,12 @@
   ブランドカラーの登録（Tailwind 4 は設定ファイルではなく、ここに @theme で書く）
   例：bg-navy / text-navy / border-navy-light のようなクラスが使えるようになる
   グラフ（Recharts）でも fill="var(--color-navy)" のように同じ変数を使う（色の定義はここ 1 箇所だけ）
+
+  static を付ける理由：Tailwind 4 は「クラスとして使われた色」しか CSS に出力しない。
+  グラフから var(--color-up) のように直接参照する色は、クラスで使っていなくても必要なので
+  static を付けて必ず出力させる。
 */
-@theme {
+@theme static {
   --color-navy: #1a2e5c;
   --color-navy-light: #3d5a99;
   --color-navy-pale: #e8edf6;
@@ -15,9 +19,4 @@
   --color-up: #0f8a5f;
   --color-down: #c0392b;
   --font-sans: var(--font-noto-sans-jp), "Hiragino Sans", "Yu Gothic", sans-serif;
-}
-
-body {
-  background: var(--color-surface);
-  color: var(--color-ink);
 }

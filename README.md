@@ -119,12 +119,14 @@ pnpm dev                            # http://localhost:3000 を開く
 ```
 
 主な構成：Next.js 16（App Router）/ React 19 / Tailwind CSS 4 / Recharts 3 / Vitest 5 / TypeScript 5。
+Recharts はグラフ用で、実際に使い始めるのは Task 5 です。
 
 ### 5-3. コマンド一覧
 | コマンド | 内容 |
 | --- | --- |
 | `pnpm dev` | 開発サーバー起動（ファイルを保存すると自動で画面が更新される） |
 | `pnpm build` | 本番用ビルド。Vercel が実行するものと同じ |
+| `pnpm start` | ビルド結果を本番と同じ形で起動して確認する |
 | `pnpm lint` | ESLint |
 | `pnpm type-check` | TypeScript の型チェック |
 | `pnpm test` | ユニットテスト（Vitest。`tests/**/*.test.ts(x)` を実行） |
@@ -188,8 +190,10 @@ worktree の作成・片付けコマンドは [CLAUDE.md §1](CLAUDE.md) を参�
 ### ディレクトリ構成（現在）
 ```
 app/                  画面（App Router）。layout.tsx = 共通の枠、page.tsx = トップページ、globals.css = ブランドカラー
+public/               画像などそのまま配信するファイル
 components/           UI 部品（site-header.tsx など）
-tests/                テスト。setup.ts（共通準備）、smoke.test.tsx（動作確認）、fixtures/sample-sales.csv
+tests/                テスト。setup.ts（共通準備）、smoke.test.tsx（動作確認）、fixtures/sample-sales.csv（テストで使う売上データ）
+case8-sales-sample.csv 受領時の原本。内容は fixtures と同じで、こちらは変更しない
 docs/                 補足ドキュメント（正解値、画面イメージ）
 .claude/              commands（/code-review, /simplify）、hooks、skills、settings.json
 CLAUDE.md             開発ルール（末尾の nextjs-agent-rules ブロックは Next.js が自動で追記するもの）
@@ -207,6 +211,7 @@ pnpm-workspace.yaml   インストール時スクリプトの許可設定（pnpm
 Tailwind 4 は設定ファイル（`tailwind.config.ts`）を使わず、`app/globals.css` の `@theme` に色を書きます。
 登録済み：`navy`（#1A2E5C）/ `navy-light` / `navy-pale` / `ink` / `ink-muted` / `up`（上昇）/ `down`（下降）。
 `bg-navy` `text-navy-light` のようにクラス名で使えます。グラフ（Recharts）でも `fill="var(--color-navy)"` のように同じ変数を渡せるので、色の定義は `globals.css` の 1 箇所だけです。
+`@theme static` と書いているのは、クラスとして使っていない色（上昇の `up`・下降の `down`）も CSS に出力させ、グラフから参照できるようにするためです。
 
 ## 10. 月額コスト試算
 
@@ -228,7 +233,7 @@ Task 8 で確定。目安：Vercel Hobby（0 円）+ Supabase Free（0 円）+ O
 | `pnpm install` 後に `npm warn allow-scripts` と出る | 警告であってエラーではない。無視してよい |
 | `tailwind.config.ts` が見つからない | Tailwind 4 には無い。色は `app/globals.css` の `@theme` に書く |
 | `next dev` を実行すると CLAUDE.md に英語のブロックが追記される | Next.js 16 の機能（AI 向けの注意書き）。そのままコミットしてよい |
-| 型エラー `Cannot find name 'LayoutProps'` | Next.js がビルド時に生成する型。CI では無いので `{ children: React.ReactNode }` と明示する |
+| 型エラー `Cannot find name 'LayoutProps'` | Next.js が生成する型がまだ無い状態。`pnpm type-check` は `next typegen` で先に型を作るので、単体で `tsc` を実行したときだけ起きる |
 | `.claude/settings.json` を変えたのに hooks が動かない | hooks は Claude Code の起動時に読み込まれる。Claude Code を再起動する |
 | git で `CRLF will be replaced by LF` と警告が出る | Windows の改行コード（CRLF）を `.gitattributes` の設定で LF に統一するときの通知。無視してよい。逆に `LF will be replaced by CRLF` と出たら `.gitattributes` が効いていないので確認する |
 | hooks が「pnpm が見つかりません」と言う | `npm i -g pnpm` を実行し、Claude Code を再起動する |
