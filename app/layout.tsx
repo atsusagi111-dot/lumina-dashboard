@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Noto_Sans_JP } from "next/font/google";
+import { Suspense } from "react";
+import { HeaderUser } from "@/components/header-user";
 import { SiteHeader } from "@/components/site-header";
 import "./globals.css";
 
@@ -19,7 +21,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ja" className={`${notoSansJp.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col bg-surface text-ink">
-        <SiteHeader />
+        <SiteHeader>
+          {/* ログイン情報の取得を待つ間もページ本文を表示できるよう Suspense で包む */}
+          <Suspense fallback={null}>
+            <HeaderUser />
+          </Suspense>
+        </SiteHeader>
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">{children}</main>
       </body>
     </html>

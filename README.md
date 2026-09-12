@@ -48,11 +48,11 @@ Google スプレッドシートに貼った売上データを読み込み、3 �
 
 ## 2. 画面イメージ
 
-Task 1 時点のトップページ（Task 5 でダッシュボードに差し替え）。
+Task 2 時点の画面（Task 5 でダッシュボードに差し替え）。
 
-| PC | スマホ（375px） |
+| ログイン後のトップ（PC） | ログイン画面（スマホ 375px） |
 | --- | --- |
-| ![PC](docs/images/task1-home-desktop.jpg) | ![スマホ](docs/images/task1-home-mobile.png) |
+| ![PC](docs/images/task2-home-desktop.jpg) | ![スマホ](docs/images/task2-login-mobile.png) |
 
 ## 3. 技術構成図
 
@@ -89,7 +89,7 @@ GitHub → Push → GitHub Actions（型チェック + Lint + テスト）→ Ve
 | --- | --- | --- | --- | --- |
 | 0 | 開発環境・ルールの整備（CLAUDE.md / hooks / SKILL.md / `.env.example` / README 骨子） | setup | ✅ | 2026-09-12 |
 | 1 | Next.js + Tailwind + pnpm の土台、ブランドカラー、`lint` / `type-check`（`tsc --noEmit`）/ `test` スクリプト | scaffold | ✅ | 2026-09-12 |
-| 2 | Supabase 接続・DB スキーマ・ログイン画面・RLS | supabase | ⬜ | |
+| 2 | Supabase 接続・DB スキーマ・ログイン画面・RLS | supabase | ✅ | 2026-09-12 |
 | 3 | Google スプレッドシート取り込み + バリデーション | sheets-import | ⬜ | |
 | 4 | KPI 集計ロジック（純粋関数 + ユニットテスト） | kpi | ⬜ | |
 | 5 | ダッシュボード UI（KPI カード・グラフ・ランキング） | dashboard-ui | ⬜ | |
@@ -105,7 +105,7 @@ GitHub → Push → GitHub Actions（型チェック + Lint + テスト）→ Ve
 | Node.js 20 以上 | 0 | https://nodejs.org からインストール（`node -v` で確認） |
 | pnpm | 1 | PowerShell で `npm i -g pnpm` → `pnpm -v` で確認 |
 | GitHub リポジトリ | 0 | github.com → New repository → Private → README 無しで作成 |
-| Supabase プロジェクト | 2 | supabase.com → New project（リージョン Tokyo、Free）→ Settings → API で `Project URL` / `anon key` / `service_role key` を控える |
+| Supabase プロジェクト | 2 | 手順は [§5-4](#5-4-supabase-の準備) を参照 |
 | OpenAI API キー | 6 | platform.openai.com → API keys → Create new secret key。Billing で $5 程度チャージ |
 | Google Cloud サービスアカウント | 3 | 手順は `.claude/skills/google-sheets-import/SKILL.md` 参照。JSON の `client_email` と `private_key` を使う |
 
@@ -130,6 +130,85 @@ pnpm dev                            # http://localhost:3000 を開く
 | `pnpm type-check` | TypeScript の型チェック |
 | `pnpm test` | ユニットテスト（Vitest。`tests/**/*.test.ts(x)` を実行） |
 | `pnpm test:analysis` | AI 分析の Snapshot テスト（Task 6 で追加。OpenAI を実際に呼ぶ） |
+
+### 5-4. Supabase の準備
+
+初回だけ必要な作業です。画面の指示どおりに進めれば 10 分ほどで終わります。
+
+**① プロジェクトを作る**
+1. https://supabase.com にサインイン →「New project」
+2. 名前は `lumina`、リージョンは **Northeast Asia (Tokyo)**、プランは Free
+3. データベースのパスワードは自動生成のものを控えておく（後で使う場面は少ないが再発行が面倒）
+4. 作成完了まで数分待つ
+
+**② 鍵を .env.local に書く**
+1. 左メニュー **Settings → API Keys** を開く
+2. 次の 3 つをコピーする
+   - Project URL
+   - publishable key（`sb_publishable_...` で始まる。ブラウザに出てよい鍵）
+   - secret key（`sb_secret_...` で始まる。**絶対に公開しない鍵**。使い始めるのは Task 6 以降なので、今は空でも動きます）
+3. プロジェクト直下で `Copy-Item .env.example .env.local` を実行し、3 つを貼り付ける
+4. 開発サーバーを起動していたら再起動する（`.env.local` は起動時に読まれるため）
+
+> 旧名の `anon key` / `service_role key` も同じ画面にありますが、2026 年末に廃止予定です。新しい publishable / secret を使ってください。
+
+**③ テーブルを作る**
+1. 左メニュー **SQL Editor** →「New query」
+2. `supabase/migrations/0001_init.sql` の中身を全部貼り付けて **Run**
+3. 同じ手順で `supabase/migrations/0002_rls.sql` も **Run**
+4. 左メニュー **Table Editor** に `uploads` / `sales_data` / `reports` の 3 つが出ていれば成功
+
+#### マイグレーション（DB の設計変更）の運用方針
+
+このプロジェクトのルールです。迷ったらここを見てください。
+
+- `0001_init.sql` は常に「**あるべき最新のスキーマ**」を表します。設計を変えたら、このファイルも最新形に書き換えます。
+- **まっさらな Supabase プロジェクト** に入れるときは、`0001` → `0002` の 2 つだけを Run します。
+- **すでにテーブルを作ってある** データベースには、差分ファイル（`0003` 以降）を Run して追いつかせます。
+  `create table if not exists` は既存のテーブルに列や制約を足さないため、差分ファイルが必要です。
+- どの差分をどこまで当てたかは、この節に追記して管理します。
+
+| 差分ファイル | 内容 | 誰が Run する必要があるか |
+| --- | --- | --- |
+| `0003_constraints.sql` | 数量・金額のマイナス禁止、レポートの重複防止、索引の見直し | 2026-09-12 より前に `0001` を Run した人 |
+
+**④ 利用者のアカウントを作る（招待制）**
+
+このダッシュボードには新規登録フォームがありません。売上データを扱うため、アカウントは管理者が発行します。
+
+1. 左メニュー **Authentication → Users** →「Add user」→「Create new user」
+2. メールアドレスとパスワードを入力
+3. **Auto Confirm User にチェック**（確認メールを省略してすぐ使えるようになる）
+4. 社長・マーケ部長・営業 5 名の分も、同じ手順で追加する
+
+### 5-5. ログインとデータの守り方
+
+#### ログイン
+- **招待制**です。新規登録フォームは置かず、アカウントは Supabase の管理画面から発行します（[§5-4 ④](#5-4-supabase-の準備)）。
+- 未ログインの人がどのページを開いても `/login` に転送されます。判定はページ表示前に走る `proxy.ts` が行います。
+- Next.js 16 から、この仕組みのファイル名が `middleware.ts` → `proxy.ts` に変わりました。
+
+#### RLS（行ごとのアクセス制限）とは
+テーブルの「行」単位で、誰が読み書きできるかを **データベース自身に守らせる**仕組みです。
+
+アプリのコードに「他人のデータは出さない」と書く方法もありますが、1 箇所書き忘れれば漏れます。
+RLS はその内側にあるもう 1 枚の壁で、アプリにバグがあってもデータベースが他人の行を返しません。
+
+このプロジェクトでの設定（`supabase/migrations/0002_rls.sql`）：
+
+| テーブル | 見える範囲 |
+| --- | --- |
+| `uploads` | 自分が取り込んだ記録だけ |
+| `sales_data` | 自分の取り込みに紐づく売上明細だけ |
+| `reports` | 自分の取り込みに紐づく AI レポートだけ |
+
+「自分」は `auth.uid()`（今ログインしている人の ID）で判定します。
+
+#### 鍵の使い分け
+| 鍵 | 置き場所 | 役割 |
+| --- | --- | --- |
+| publishable key | ブラウザに出てよい | 読み書きの範囲は RLS が制限する |
+| secret key | サーバーのみ | **RLS を無視できる**ので、絶対に公開しない。`NEXT_PUBLIC_` を付けない |
 
 ## 6. スプレッドシートの準備方法
 
@@ -189,9 +268,15 @@ worktree の作成・片付けコマンドは [CLAUDE.md §1](CLAUDE.md) を参�
 ### ディレクトリ構成（現在）
 ```
 app/                  画面（App Router）。layout.tsx = 共通の枠、page.tsx = トップページ、globals.css = ブランドカラー
+app/login/            ログイン画面と Server Action（ログイン・ログアウト）
+lib/env.ts            環境変数の読み込み。未設定なら日本語で案内して止める
+lib/auth/             ログインが要るかの判定、エラー文の日本語化
+lib/supabase/         Supabase 接続（client = ブラウザ用、server = サーバー用、proxy = ログイン判定、require-user = 認可チェック）
+proxy.ts              全ページの表示前に走る入口（Next.js 16 で middleware.ts から改名）
+supabase/migrations/  DB のテーブル定義と RLS 設定の SQL
 public/               画像などそのまま配信するファイル
 components/           UI 部品（site-header.tsx など）
-tests/                テスト。setup.ts（共通準備）、smoke.test.tsx（動作確認）、fixtures/sample-sales.csv（テストで使う売上データ）
+tests/                テスト一式。fixtures/sample-sales.csv（テストで使う売上データ）
 case8-sales-sample.csv 受領時の原本。内容は fixtures と同じで、こちらは変更しない
 docs/                 補足ドキュメント（正解値、画面イメージ）
 .claude/              commands（/code-review, /simplify）、hooks、skills、settings.json
@@ -222,6 +307,12 @@ Task 8 で確定。目安：Vercel Hobby（0 円）+ Supabase Free（0 円）+ O
 | 症状 | 原因と対処 |
 | --- | --- |
 | `pnpm` が見つからない | `npm i -g pnpm` を実行し、PowerShell を開き直す |
+| 画面に「環境変数 ... が設定されていません」と出る | `.env.local` が無いか値が空。[§5-4 ②](#5-4-supabase-の準備) のとおり設定し、開発サーバーを再起動する |
+| ログインで「メールアドレスまたはパスワードが違います」と出る | Supabase の Authentication → Users にそのアカウントがあるか確認する。作成時に Auto Confirm User を付け忘れると、正しいパスワードでもログインできない |
+| ログインしてもすぐログアウトされる | `lib/supabase/proxy.ts` の `getClaims()` の前後に処理を足していないか確認する（公式が警告している既知の落とし穴） |
+| Table Editor にテーブルが出ない | SQL Editor で `0001_init.sql` を Run したか確認する。エラーが出ていれば内容を読む |
+| ページが 404 になる | 日本語の「ページが見つかりません」が出れば正常動作。URL を確認する |
+| `Server Actions must be async functions` | `"use server"` を付けたファイルでは async 関数しか公開できない。普通の関数は `lib/` に移す |
 | `pnpm install` 後に `npm warn allow-scripts` と出る | 警告であってエラーではない。無視してよい |
 | `next dev` を実行すると CLAUDE.md に英語のブロックが追記される | Next.js 16 の機能（AI 向けの注意書き）。そのままコミットしてよい |
 | 型エラー `Cannot find name 'LayoutProps'` | Next.js が生成する型がまだ無い状態。`pnpm type-check` は `next typegen` で先に型を作るので、単体で `tsc` を実行したときだけ起きる |
