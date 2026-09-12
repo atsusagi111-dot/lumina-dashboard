@@ -142,3 +142,55 @@ describe("行のまとめ方", () => {
     expect(errorsOf(sheetWith())[0]).toContain("データ行がありません");
   });
 });
+
+describe("Google が返す省略形の行", () => {
+  it("末尾の空セルが省かれた短い行も読める", () => {
+    // Sheets API は末尾が空のセルを省いて返す
+    const result = validateSheetValues([HEADER, ["2025-11-03", "C001", "商品", "", "", "1", "1000", "400"].slice(0, 8)]);
+    expect(result.ok).toBe(true);
+  });
+
+  it("category 以降が省かれた行でも、空として扱う", () => {
+    const result = validateSheetValues([HEADER, ["2025-11-03", "C001", "商品", "", "", "1", "1000", "400"]]);
+
+    if (!result.ok) throw new Error(result.errors.join(" / "));
+    expect(result.rows[0].category).toBeNull();
+    expect(result.rows[0].sku).toBeNull();
+  });
+
+  it("完全に空の行は、要素数 0 の配列でも飛ばす", () => {
+    const result = validateSheetValues([HEADER, VALID_ROW, [], VALID_ROW]);
+
+    if (!result.ok) throw new Error(result.errors.join(" / "));
+    expect(result.rows).toHaveLength(2);
+    expect(result.skippedEmptyRows).toBe(1);
+  });
+});
+
+describe("打ち間違いが別の数字にならないこと", () => {
+  it("指数表記は数値として受け付けない", () => {
+    expect(errorsOf(sheetWith(rowWith("quantity", "1e3")))[0]).toBe(
+      "2 行目の quantity「1e3」は整数ではありません",
+    );
+  });
+
+  it("16 進表記は数値として受け付けない", () => {
+    expect(errorsOf(sheetWith(rowWith("revenue", "0x10")))[0]).toBe("2 行目の revenue「0x10」は数値ではありません");
+  });
+
+  it("桁が大きすぎる金額は、保存前に止める", () => {
+    expect(errorsOf(sheetWith(rowWith("revenue", "999999999999999")))[0]).toContain("は大きすぎます");
+  });
+
+  it("小数 3 桁以上は、黙って丸めずに知らせる", () => {
+    expect(errorsOf(sheetWith(rowWith("cost", "100.005")))[0]).toBe(
+      "2 行目の cost「100.005」の小数は 2 桁までにしてください",
+    );
+  });
+
+  it("小数 2 桁までは通る", () => {
+    const result = validateSheetValues(sheetWith(rowWith("cost", "100.25")));
+    if (!result.ok) throw new Error(result.errors.join(" / "));
+    expect(result.rows[0].cost).toBe(100.25);
+  });
+});

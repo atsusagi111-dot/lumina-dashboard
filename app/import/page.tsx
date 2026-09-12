@@ -7,13 +7,6 @@ export const metadata: Metadata = {
   title: "データの取り込み | LUMINA 売上分析ダッシュボード",
 };
 
-type Upload = {
-  id: string;
-  sheet_name: string;
-  row_count: number;
-  uploaded_at: string;
-};
-
 const dateFormatter = new Intl.DateTimeFormat("ja-JP", {
   dateStyle: "medium",
   timeStyle: "short",
@@ -24,13 +17,14 @@ export default async function ImportPage() {
   const { supabase } = await requireUser();
 
   // RLS により、自分が取り込んだ記録だけが返る
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("uploads")
     .select("id, sheet_name, row_count, uploaded_at")
     .order("uploaded_at", { ascending: false })
     .limit(5);
 
-  const uploads = (data ?? []) as Upload[];
+  if (error) console.error("取り込み履歴の読み込みに失敗しました", error);
+  const uploads = data ?? [];
 
   return (
     <div className="space-y-8">
@@ -45,7 +39,9 @@ export default async function ImportPage() {
 
       <section>
         <h2 className="text-base font-bold text-navy">最近の取り込み</h2>
-        {uploads.length === 0 ? (
+        {error ? (
+          <p className="mt-2 text-sm text-down">取り込み履歴を読み込めませんでした。画面を再読み込みしてください。</p>
+        ) : uploads.length === 0 ? (
           <p className="mt-2 text-sm text-ink-muted">まだ取り込みはありません。</p>
         ) : (
           <div className="mt-3 overflow-x-auto">

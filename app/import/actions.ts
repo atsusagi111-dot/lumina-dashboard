@@ -27,9 +27,11 @@ export async function importSpreadsheet(
 
   const validated = validateSheetValues(sheet.values);
   if (!validated.ok) {
+    const hidden = validated.errors.length - MAX_SHOWN_ERRORS;
+    const omitted = hidden > 0 ? `（下に出しているのは最初の ${MAX_SHOWN_ERRORS} 件で、ほか ${hidden} 件は省略しています）` : "";
     return {
       status: "error",
-      message: `${validated.errors.length} 件の問題が見つかりました。スプレッドシートを直してから、もう一度お試しください。データは 1 件も保存していません。`,
+      message: `${validated.errors.length} 件の問題が見つかりました${omitted}。スプレッドシートを直してから、もう一度お試しください。データは 1 件も保存していません。`,
       errors: validated.errors.slice(0, MAX_SHOWN_ERRORS),
     };
   }
@@ -57,7 +59,18 @@ export async function importSpreadsheet(
 
   if (rowsError) {
     // 失敗したら取り込み記録も消して、中途半端なデータを残さない
-    await supabase.from("uploads").delete().eq("id", upload.id);
+    const { error: rollbackError } = await supabase.from("uploads").delete().eq("id", upload.id);
+    if (rollbackError) {
+      // 巻き戻しにも失敗した場合、明細 0 件の取り込み記録が残る。
+      // 画面が「取り込み済み」と誤表示しうるので、その旨を伝える。
+      console.error("取り込み記録の巻き戻しに失敗しました", rollbackError);
+      return {
+        status: "error",
+        message:
+          "売上データの保存に失敗し、取り込み履歴に不整合が残った可能性があります。もう一度取り込み直してください。",
+        errors: [],
+      };
+    }
     return { status: "error", message: "売上データの保存に失敗しました。時間をおいてお試しください。", errors: [] };
   }
 

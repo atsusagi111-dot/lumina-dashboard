@@ -1,13 +1,17 @@
 // サーバー側（Server Component / Server Action）から Supabase につなぐためのクライアント。
 // ログイン状態は cookie に入っているので、cookie の読み書きを Supabase に渡している。
+import { cache } from "react";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { supabasePublishableKey, supabaseUrl } from "@/lib/env";
+import type { Database } from "@/lib/supabase/database.types";
 
-export async function createClient() {
+// cache で包む理由：1 回の画面表示の中で何度呼んでも、クライアントは 1 つで済む。
+// cookies() はリクエストごとに別物なので、他のリクエストと混ざることはない。
+export const createClient = cache(async () => {
   const cookieStore = await cookies();
 
-  return createServerClient(supabaseUrl(), supabasePublishableKey(), {
+  return createServerClient<Database>(supabaseUrl(), supabasePublishableKey(), {
     cookies: {
       getAll() {
         return cookieStore.getAll();
@@ -25,4 +29,4 @@ export async function createClient() {
       },
     },
   });
-}
+});

@@ -35,7 +35,7 @@ git branch -d feature/<タスク名>
 - Next.js（App Router）/ TypeScript（strict）/ Tailwind CSS / Recharts
 - Supabase（PostgreSQL + Auth + RLS）
 - OpenAI API（モデルは `.env.example` の `OPENAI_MODEL` が既定。JSON は Structured Outputs で受け取る）
-- Google Sheets API（`googleapis` + サービスアカウント）
+- Google Sheets API（`google-auth-library` + サービスアカウント。`googleapis` は使わない。理由は `.claude/skills/google-sheets-import/SKILL.md`）
 - パッケージマネージャ：**pnpm**（npm / yarn は使わない）
 - テスト：Vitest
 - ホスティング：Vercel / CI：GitHub Actions

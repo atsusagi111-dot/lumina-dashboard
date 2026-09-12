@@ -16,7 +16,7 @@ export function ImportForm({ serviceAccountEmail }: Props) {
     <div className="space-y-4">
       <form action={formAction} className="space-y-3">
         <div>
-          <label htmlFor="spreadsheetUrl" className="block text-sm font-medium text-ink">
+          <label htmlFor="spreadsheetUrl" className="field-label">
             スプレッドシートの URL
           </label>
           <input
@@ -25,7 +25,7 @@ export function ImportForm({ serviceAccountEmail }: Props) {
             type="text"
             required
             placeholder="https://docs.google.com/spreadsheets/d/..."
-            className="mt-1 w-full rounded-md border border-navy-pale px-3 py-2 text-ink outline-none focus:border-navy-light focus:ring-2 focus:ring-navy-pale"
+            className="field-input"
           />
           <p className="mt-2 text-xs text-ink-muted">
             事前に、そのスプレッドシートを <span className="font-medium">{serviceAccountEmail}</span>{" "}
@@ -36,7 +36,7 @@ export function ImportForm({ serviceAccountEmail }: Props) {
         <button
           type="submit"
           disabled={isPending}
-          className="rounded-md bg-navy px-4 py-2 font-medium text-white transition hover:bg-navy-light disabled:opacity-60"
+          className="btn-primary"
         >
           {isPending ? "取り込み中…" : "取り込む"}
         </button>
@@ -53,8 +53,8 @@ export function ImportForm({ serviceAccountEmail }: Props) {
           <p className="whitespace-pre-line font-medium">{state.message}</p>
           {state.errors.length > 0 && (
             <ul className="mt-2 list-disc space-y-1 pl-5">
-              {state.errors.map((error) => (
-                <li key={error}>{error}</li>
+              {state.errors.map((error, index) => (
+                <li key={`${index}-${error}`}>{error}</li>
               ))}
             </ul>
           )}

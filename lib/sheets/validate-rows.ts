@@ -30,14 +30,22 @@ export type SalesRow = {
   cost: number;
 };
 
+/** DB の numeric(14,2) に収まる上限（supabase/migrations/0001_init.sql と対応） */
+const MAX_AMOUNT = 999_999_999_999;
+
 export type ValidationResult =
   | { ok: true; rows: SalesRow[]; skippedEmptyRows: number }
   | { ok: false; errors: string[] };
 
-/** 「¥19,800」「1,000 円」などの表記から数値だけを取り出す */
+/**
+ * 「¥19,800」「1,000 円」などの表記から数値だけを取り出す。
+ *
+ * Number() だけに任せないのは、`1e3` を 1000、`0x10` を 16 と読んでしまうため。
+ * 打ち間違いが「エラー」ではなく「別の数字」になると、集計が静かにずれる。
+ */
 function toNumber(value: string): number | null {
   const cleaned = value.replace(/[¥￥,，\s円]/g, "");
-  if (cleaned === "") return null;
+  if (!/^-?\d+(\.\d+)?$/.test(cleaned)) return null;
   const n = Number(cleaned);
   return Number.isFinite(n) ? n : null;
 }
@@ -56,6 +64,31 @@ function toIsoDate(value: string): string | null {
     return null;
   }
   return iso;
+}
+
+/**
+ * 数値の列を検査する。3 列（quantity / revenue / cost）で同じ形を使う。
+ *
+ * 上限と小数桁を見るのは、DB の numeric(14,2) で弾かれる前に止めるため。
+ * DB まで届くと「何行目が原因か」を伝えられなくなる。
+ */
+function numberField(column: string, rule: { integer?: boolean; min: number }) {
+  return z.string().transform((value, ctx) => {
+    const fail = (reason: string) => {
+      ctx.addIssue({ code: "custom", message: `${column}「${value}」${reason}` });
+      return z.NEVER;
+    };
+
+    const n = toNumber(value);
+    if (n === null) return fail(rule.integer ? "は整数ではありません" : "は数値ではありません");
+    if (rule.integer && !Number.isInteger(n)) return fail("は整数ではありません");
+    if (n < rule.min) {
+      return fail(rule.min === 0 ? "はマイナスにできません" : `は ${rule.min} 以上にしてください`);
+    }
+    if (n > MAX_AMOUNT) return fail("は大きすぎます");
+    if (Math.round(n * 100) !== n * 100) return fail("の小数は 2 桁までにしてください");
+    return n;
+  });
 }
 
 const rowSchema = z.object({
@@ -78,34 +111,10 @@ const rowSchema = z.object({
     .refine((v) => v !== "", { error: "product_name が空です" }),
   category: z.string().transform((v) => v.trim() || null),
   sku: z.string().transform((v) => v.trim() || null),
-  quantity: z.string().transform((v, ctx) => {
-    const n = toNumber(v);
-    if (n === null || !Number.isInteger(n)) {
-      ctx.addIssue({ code: "custom", message: `quantity「${v}」は整数ではありません` });
-      return z.NEVER;
-    }
-    if (n < 1) {
-      ctx.addIssue({ code: "custom", message: `quantity「${v}」は 1 以上にしてください` });
-      return z.NEVER;
-    }
-    return n;
-  }),
-  revenue: z.string().transform((v, ctx) => amount(v, "revenue", ctx)),
-  cost: z.string().transform((v, ctx) => amount(v, "cost", ctx)),
+  quantity: numberField("quantity", { integer: true, min: 1 }),
+  revenue: numberField("revenue", { min: 0 }),
+  cost: numberField("cost", { min: 0 }),
 });
-
-function amount(value: string, column: string, ctx: z.RefinementCtx): number {
-  const n = toNumber(value);
-  if (n === null) {
-    ctx.addIssue({ code: "custom", message: `${column}「${value}」は数値ではありません` });
-    return z.NEVER;
-  }
-  if (n < 0) {
-    ctx.addIssue({ code: "custom", message: `${column}「${value}」はマイナスにできません` });
-    return z.NEVER;
-  }
-  return n;
-}
 
 /** ヘッダー行が仕様どおりかを調べる */
 function checkHeaders(header: string[]): string[] {
