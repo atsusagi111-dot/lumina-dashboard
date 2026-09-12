@@ -91,7 +91,7 @@ GitHub → Push → GitHub Actions（型チェック + Lint + テスト）→ Ve
 | 1 | Next.js + Tailwind + pnpm の土台、ブランドカラー、`lint` / `type-check`（`tsc --noEmit`）/ `test` スクリプト | scaffold | ✅ | 2026-09-12 |
 | 2 | Supabase 接続・DB スキーマ・ログイン画面・RLS | supabase | ✅ | 2026-09-12 |
 | 3 | Google スプレッドシート取り込み + バリデーション | sheets-import | ✅ | 2026-09-12 |
-| 4 | KPI 集計ロジック（純粋関数 + ユニットテスト） | kpi | ⬜ | |
+| 4 | KPI 集計ロジック（純粋関数 + ユニットテスト） | kpi | ✅ | 2026-09-12 |
 | 5 | ダッシュボード UI（KPI カード・グラフ・ランキング） | dashboard-ui | ⬜ | |
 | 6 | OpenAI 分析コメント + Snapshot テスト | ai-analysis | ⬜ | |
 | 7 | CI/CD（GitHub Actions + Vercel） | ci | ⬜ | |
@@ -248,6 +248,19 @@ URL ではなくシート ID を直接貼っても構いません。読み込む
 算出する KPI：売上 / 粗利 / 粗利率 / リピート率（月次・全期間）/ 前月比 / カテゴリ別売上 / SKU トップ 10。
 定義と計算式は `.claude/skills/kpi-calculation/SKILL.md`、サンプルデータでの正解値は [docs/sample-data.md](docs/sample-data.md) を参照（いずれも唯一の正。ここには複製しない）。
 
+計算は `lib/kpi/` の **純粋関数**（入力だけで出力が決まり、データベースにも API にも触らない関数）で行います。
+画面はこの関数が返した数字を並べるだけなので、Excel との突き合わせは関数のテストだけで済みます。
+
+| 関数 | 返すもの |
+| --- | --- |
+| `calcMonthlyKpis(rows)` | 月ごとの売上・粗利・粗利率・購入者数・リピート率・前月比（古い月から順） |
+| `calcCategoryBreakdown(rows, { month })` | カテゴリ別の売上と構成比（売上の多い順） |
+| `calcTopSkus(rows, { month, limit })` | SKU ごとの売上と数量（既定は上位 10 件） |
+| `calcOverallRepeatRate(rows)` | 全期間の顧客数・リピーター数・リピート率 |
+
+「計算できない」場合は `0` ではなく `null` を返します（売上 0 円のときの粗利率、前月のデータが無いときの前月比など）。
+画面ではこれを「—」と表示します。
+
 ## 8. AI 分析の仕組み
 
 - 生データではなく **集計結果だけ** を OpenAI に渡す（トークン節約・精度向上・個人情報を出さない）
@@ -292,6 +305,8 @@ app/                  画面（App Router）。layout.tsx = 共通の枠、page.
 app/login/            ログイン画面と Server Action（ログイン・ログアウト）
 app/import/           取り込み画面と Server Action（読み込み・検査・保存）
 lib/sheets/           スプレッドシートの ID 取り出し・読み込み・検査
+lib/kpi/              KPI 集計の純粋関数（monthly = 月次、breakdown = カテゴリと SKU、round = 端数処理）
+lib/sales-row.ts      売上 1 行の型（取り込み側と集計側の共通）
 lib/env.ts            環境変数の読み込み。未設定なら日本語で案内して止める
 lib/auth/             ログインが要るかの判定、エラー文の日本語化
 lib/supabase/         Supabase 接続（client = ブラウザ用、server = サーバー用、proxy = ログイン判定、require-user = 認可チェック）

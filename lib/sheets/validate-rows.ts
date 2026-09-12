@@ -6,6 +6,7 @@
 // 方針：1 件目で止めず、全行を調べてからエラーをまとめて返す（直す回数を減らすため）。
 
 import { z } from "zod";
+import type { SalesRow } from "@/lib/sales-row";
 
 /** スプレッドシートに必要な列。この順番・この名前で 1 行目に並んでいること */
 export const EXPECTED_HEADERS = [
@@ -19,16 +20,8 @@ export const EXPECTED_HEADERS = [
   "cost",
 ] as const;
 
-export type SalesRow = {
-  order_date: string;
-  customer_id: string | null;
-  product_name: string;
-  category: string | null;
-  sku: string | null;
-  quantity: number;
-  revenue: number;
-  cost: number;
-};
+// 売上 1 行の型は lib/sales-row.ts が唯一の正。取り込み側と集計側の両方が使うため
+export type { SalesRow };
 
 /** DB の numeric(14,2) に収まる上限（supabase/migrations/0001_init.sql と対応） */
 const MAX_AMOUNT = 999_999_999_999;
