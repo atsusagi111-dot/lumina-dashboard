@@ -48,7 +48,11 @@ Google スプレッドシートに貼った売上データを読み込み、3 �
 
 ## 2. 画面イメージ
 
-Task 5 完了後に `docs/images/` へスクリーンショットを追加します。
+Task 1 時点のトップページ（Task 5 でダッシュボードに差し替え）。
+
+| PC | スマホ（375px） |
+| --- | --- |
+| ![PC](docs/images/task1-home-desktop.jpg) | ![スマホ](docs/images/task1-home-mobile.png) |
 
 ## 3. 技術構成図
 
@@ -84,7 +88,7 @@ GitHub → Push → GitHub Actions（型チェック + Lint + テスト）→ Ve
 | Task | 内容 | worktree 名 | 状態 | 完了日 |
 | --- | --- | --- | --- | --- |
 | 0 | 開発環境・ルールの整備（CLAUDE.md / hooks / SKILL.md / `.env.example` / README 骨子） | setup | ✅ | 2026-09-12 |
-| 1 | Next.js + Tailwind + pnpm の土台、ブランドカラー、`lint` / `type-check`（`tsc --noEmit`）/ `test` スクリプト | scaffold | ⬜ | |
+| 1 | Next.js + Tailwind + pnpm の土台、ブランドカラー、`lint` / `type-check`（`tsc --noEmit`）/ `test` スクリプト | scaffold | ✅ | 2026-09-12 |
 | 2 | Supabase 接続・DB スキーマ・ログイン画面・RLS | supabase | ⬜ | |
 | 3 | Google スプレッドシート取り込み + バリデーション | sheets-import | ⬜ | |
 | 4 | KPI 集計ロジック（純粋関数 + ユニットテスト） | kpi | ⬜ | |
@@ -105,23 +109,27 @@ GitHub → Push → GitHub Actions（型チェック + Lint + テスト）→ Ve
 | OpenAI API キー | 6 | platform.openai.com → API keys → Create new secret key。Billing で $5 程度チャージ |
 | Google Cloud サービスアカウント | 3 | 手順は `.claude/skills/google-sheets-import/SKILL.md` 参照。JSON の `client_email` と `private_key` を使う |
 
-### 5-2. 手順（Task 1 以降で有効）
+### 5-2. 手順
 ```powershell
-git clone <このリポジトリの URL>
+git clone https://github.com/atsusagi111-dot/lumina-dashboard.git
 cd lumina-dashboard
-pnpm install
-Copy-Item .env.example .env.local   # 値を埋める
-pnpm dev                            # http://localhost:3000
+pnpm install                        # 依存パッケージを入れる（初回は数分）
+Copy-Item .env.example .env.local   # 値を埋める（Task 2 以降で必要）
+pnpm dev                            # http://localhost:3000 を開く
 ```
 
-### 5-3. コマンド一覧（Task 1 以降で追加）
+使用技術は CLAUDE.md §2、実際のバージョンは `package.json` を参照してください。グラフ用の Recharts は Task 5 から使い始めます。
+
+### 5-3. コマンド一覧
 | コマンド | 内容 |
 | --- | --- |
-| `pnpm dev` | 開発サーバー起動 |
+| `pnpm dev` | 開発サーバー起動（ファイルを保存すると自動で画面が更新される） |
+| `pnpm build` | 本番用ビルド。Vercel が実行するものと同じ |
+| `pnpm start` | ビルド結果を本番と同じ形で起動して確認する |
 | `pnpm lint` | ESLint |
 | `pnpm type-check` | TypeScript の型チェック |
-| `pnpm test` | ユニットテスト |
-| `pnpm test:analysis` | AI 分析の Snapshot テスト（OpenAI を実際に呼ぶ） |
+| `pnpm test` | ユニットテスト（Vitest。`tests/**/*.test.ts(x)` を実行） |
+| `pnpm test:analysis` | AI 分析の Snapshot テスト（Task 6 で追加。OpenAI を実際に呼ぶ） |
 
 ## 6. スプレッドシートの準備方法
 
@@ -180,16 +188,22 @@ worktree の作成・片付けコマンドは [CLAUDE.md §1](CLAUDE.md) を参�
 
 ### ディレクトリ構成（現在）
 ```
-.claude/
-  commands/       /code-review, /simplify の指示書
-  hooks/          自動実行スクリプト
-  skills/         作業手順書（SKILL.md）
-  settings.json   hooks 定義
-docs/             補足ドキュメント（サンプルデータの正解値など）
-tests/fixtures/   sample-sales.csv（ダミー 40 件）
-CLAUDE.md         開発ルール
-.env.example      環境変数のキー名一覧
+app/                  画面（App Router）。layout.tsx = 共通の枠、page.tsx = トップページ、globals.css = ブランドカラー
+public/               画像などそのまま配信するファイル
+components/           UI 部品（site-header.tsx など）
+tests/                テスト。setup.ts（共通準備）、smoke.test.tsx（動作確認）、fixtures/sample-sales.csv（テストで使う売上データ）
+case8-sales-sample.csv 受領時の原本。内容は fixtures と同じで、こちらは変更しない
+docs/                 補足ドキュメント（正解値、画面イメージ）
+.claude/              commands（/code-review, /simplify）、hooks、skills、settings.json
+CLAUDE.md             開発ルール
+.env.example          環境変数のキー名一覧
+各種設定             package.json / tsconfig.json / eslint.config.mjs / vitest.config.mts /
+                     next.config.ts / postcss.config.mjs / pnpm-workspace.yaml
 ```
+
+### ブランドカラーの使い方
+色の定義と使い方（クラス名・グラフからの参照方法）は `app/globals.css` の `@theme` とそのコメントが唯一の正です。
+Tailwind 4 には `tailwind.config.ts` がなく、色は CSS に直接書きます。
 
 ## 10. 月額コスト試算
 
@@ -208,6 +222,10 @@ Task 8 で確定。目安：Vercel Hobby（0 円）+ Supabase Free（0 円）+ O
 | 症状 | 原因と対処 |
 | --- | --- |
 | `pnpm` が見つからない | `npm i -g pnpm` を実行し、PowerShell を開き直す |
+| `pnpm install` 後に `npm warn allow-scripts` と出る | 警告であってエラーではない。無視してよい |
+| `next dev` を実行すると CLAUDE.md に英語のブロックが追記される | Next.js 16 の機能（AI 向けの注意書き）。そのままコミットしてよい |
+| 型エラー `Cannot find name 'LayoutProps'` | Next.js が生成する型がまだ無い状態。`pnpm type-check` は `next typegen` で先に型を作るので、単体で `tsc` を実行したときだけ起きる |
+| `.claude/settings.json` を変えたのに hooks が動かない | hooks は Claude Code の起動時に読み込まれる。Claude Code を再起動する |
 | git で `CRLF will be replaced by LF` と警告が出る | Windows の改行コード（CRLF）を `.gitattributes` の設定で LF に統一するときの通知。無視してよい。逆に `LF will be replaced by CRLF` と出たら `.gitattributes` が効いていないので確認する |
 | hooks が「pnpm が見つかりません」と言う | `npm i -g pnpm` を実行し、Claude Code を再起動する |
 | hooks が動かない | `node -v` で Node が入っているか確認。`.claude/settings.json` の JSON が壊れていないか `node -e "JSON.parse(require('fs').readFileSync('.claude/settings.json','utf8'))"` で確認 |

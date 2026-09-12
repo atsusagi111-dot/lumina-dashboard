@@ -94,6 +94,7 @@ type：`feat`（機能追加）/ `fix`（バグ修正）/ `docs`（文書）/ `t
 | KPI の定義・計算式 | `.claude/skills/kpi-calculation/SKILL.md` |
 | サンプルデータの正解値 | `docs/sample-data.md` |
 | 環境変数の一覧と取得方法 | `.env.example` |
+| ブランドカラーの定義 | `app/globals.css` の `@theme`（コメントに使い方も記載） |
 | スプレッドシート取り込みの実装手順 | `.claude/skills/google-sheets-import/SKILL.md` |
 | OpenAI 分析の実装手順・Snapshot テスト | `.claude/skills/openai-analysis/SKILL.md` |
 | README 更新チェックリスト | `.claude/skills/readme-update/SKILL.md` |
@@ -112,3 +113,13 @@ type：`feat`（機能追加）/ `fix`（バグ修正）/ `docs`（文書）/ `t
 - 型チェック（`pnpm type-check`）・Lint（`pnpm lint`）・テスト（`pnpm test`）がすべて通ること。
 - 画面はスマホ幅（375px）でも崩れないこと。
 - ブランドカラー：白 + ネイビー `#1A2E5C`。
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->
