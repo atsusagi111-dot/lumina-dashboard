@@ -28,3 +28,13 @@ export function supabasePublishableKey(): string {
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   );
 }
+
+/** Google サービスアカウントのメールアドレス（スプレッドシートの共有先） */
+export function googleServiceAccountEmail(): string {
+  return required("GOOGLE_SERVICE_ACCOUNT_EMAIL", process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL);
+}
+
+/** Google サービスアカウントの秘密鍵。改行は \n の 2 文字で入っているので、使う側で戻す */
+export function googlePrivateKey(): string {
+  return required("GOOGLE_PRIVATE_KEY", process.env.GOOGLE_PRIVATE_KEY);
+}

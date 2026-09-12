@@ -28,7 +28,8 @@ description: Google スプレッドシートから売上データを読み込み
 
 ## 3. 実装手順（`lib/sheets/`）
 1. **URL からシート ID を抽出**：`https://docs.google.com/spreadsheets/d/<ID>/edit...` の `<ID>` 部分。正規表現 `/\/d\/([a-zA-Z0-9-_]+)/`。ID を直接入力された場合もそのまま受け付ける
-2. **読み込み**：`googleapis` の `google.auth.JWT`（サービスアカウント認証）→ `sheets.spreadsheets.values.get({ spreadsheetId, range: "<シート名>!A1:H" })`
+2. **読み込み**：`google-auth-library` の `JWT` で認証トークンを取り、Sheets REST API に `fetch` で問い合わせる（`GET /v4/spreadsheets/{id}/values/{シート名}!A1:H`）
+   - `googleapis` は使わない。Google の全 API を含む巨大なパッケージで、必要なのは認証だけのため
    - スコープは読み取り専用 `https://www.googleapis.com/auth/spreadsheets.readonly`
    - シート名は既定で 1 枚目（`spreadsheets.get` で取得）。フォームで指定可能にする
 3. **バリデーション**（Zod を使う）：

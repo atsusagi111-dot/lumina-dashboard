@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 
 export type CurrentUser = {
@@ -38,8 +39,9 @@ export async function getOptionalUser(): Promise<CurrentUser | null> {
  * proxy.ts も未ログインを弾いているが、あれは「最初のふるい」であって唯一の守りにしてはいけない
  * （Next.js 公式ガイドの指針）。実際にデータを読む場所の近くで、もう一度確かめる。
  */
-export async function requireUser(): Promise<CurrentUser> {
+export async function requireUser(): Promise<CurrentUser & { supabase: SupabaseClient }> {
   const user = await readUser();
   if (!user) redirect("/login");
-  return user;
+  // データを読み書きするページから使えるよう、クライアントも一緒に返す
+  return { ...user, supabase: await createClient() };
 }
