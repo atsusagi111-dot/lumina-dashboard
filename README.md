@@ -118,8 +118,7 @@ Copy-Item .env.example .env.local   # 値を埋める（Task 2 以降で必要�
 pnpm dev                            # http://localhost:3000 を開く
 ```
 
-主な構成：Next.js 16（App Router）/ React 19 / Tailwind CSS 4 / Recharts 3 / Vitest 5 / TypeScript 5。
-Recharts はグラフ用で、実際に使い始めるのは Task 5 です。
+使用技術は CLAUDE.md §2、実際のバージョンは `package.json` を参照してください。グラフ用の Recharts は Task 5 から使い始めます。
 
 ### 5-3. コマンド一覧
 | コマンド | 内容 |
@@ -196,22 +195,15 @@ tests/                テスト。setup.ts（共通準備）、smoke.test.tsx（
 case8-sales-sample.csv 受領時の原本。内容は fixtures と同じで、こちらは変更しない
 docs/                 補足ドキュメント（正解値、画面イメージ）
 .claude/              commands（/code-review, /simplify）、hooks、skills、settings.json
-CLAUDE.md             開発ルール（末尾の nextjs-agent-rules ブロックは Next.js が自動で追記するもの）
+CLAUDE.md             開発ルール
 .env.example          環境変数のキー名一覧
-package.json          依存パッケージと pnpm スクリプト
-tsconfig.json         TypeScript 設定（@/ = プロジェクトルート）
-eslint.config.mjs     ESLint 設定（Next.js 推奨ルール）
-vitest.config.mts     Vitest 設定
-next.config.ts        Next.js 設定
-postcss.config.mjs    Tailwind 4 を CSS に組み込む設定
-pnpm-workspace.yaml   インストール時スクリプトの許可設定（pnpm の安全機能）
+各種設定             package.json / tsconfig.json / eslint.config.mjs / vitest.config.mts /
+                     next.config.ts / postcss.config.mjs / pnpm-workspace.yaml
 ```
 
 ### ブランドカラーの使い方
-Tailwind 4 は設定ファイル（`tailwind.config.ts`）を使わず、`app/globals.css` の `@theme` に色を書きます。
-登録済み：`navy`（#1A2E5C）/ `navy-light` / `navy-pale` / `ink` / `ink-muted` / `up`（上昇）/ `down`（下降）。
-`bg-navy` `text-navy-light` のようにクラス名で使えます。グラフ（Recharts）でも `fill="var(--color-navy)"` のように同じ変数を渡せるので、色の定義は `globals.css` の 1 箇所だけです。
-`@theme static` と書いているのは、クラスとして使っていない色（上昇の `up`・下降の `down`）も CSS に出力させ、グラフから参照できるようにするためです。
+色の定義と使い方（クラス名・グラフからの参照方法）は `app/globals.css` の `@theme` とそのコメントが唯一の正です。
+Tailwind 4 には `tailwind.config.ts` がなく、色は CSS に直接書きます。
 
 ## 10. 月額コスト試算
 
@@ -231,7 +223,6 @@ Task 8 で確定。目安：Vercel Hobby（0 円）+ Supabase Free（0 円）+ O
 | --- | --- |
 | `pnpm` が見つからない | `npm i -g pnpm` を実行し、PowerShell を開き直す |
 | `pnpm install` 後に `npm warn allow-scripts` と出る | 警告であってエラーではない。無視してよい |
-| `tailwind.config.ts` が見つからない | Tailwind 4 には無い。色は `app/globals.css` の `@theme` に書く |
 | `next dev` を実行すると CLAUDE.md に英語のブロックが追記される | Next.js 16 の機能（AI 向けの注意書き）。そのままコミットしてよい |
 | 型エラー `Cannot find name 'LayoutProps'` | Next.js が生成する型がまだ無い状態。`pnpm type-check` は `next typegen` で先に型を作るので、単体で `tsc` を実行したときだけ起きる |
 | `.claude/settings.json` を変えたのに hooks が動かない | hooks は Claude Code の起動時に読み込まれる。Claude Code を再起動する |

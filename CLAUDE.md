@@ -94,6 +94,7 @@ type：`feat`（機能追加）/ `fix`（バグ修正）/ `docs`（文書）/ `t
 | KPI の定義・計算式 | `.claude/skills/kpi-calculation/SKILL.md` |
 | サンプルデータの正解値 | `docs/sample-data.md` |
 | 環境変数の一覧と取得方法 | `.env.example` |
+| ブランドカラーの定義 | `app/globals.css` の `@theme`（コメントに使い方も記載） |
 | スプレッドシート取り込みの実装手順 | `.claude/skills/google-sheets-import/SKILL.md` |
 | OpenAI 分析の実装手順・Snapshot テスト | `.claude/skills/openai-analysis/SKILL.md` |
 | README 更新チェックリスト | `.claude/skills/readme-update/SKILL.md` |
