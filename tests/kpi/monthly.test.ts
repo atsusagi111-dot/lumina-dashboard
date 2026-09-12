@@ -1,4 +1,4 @@
-import { calcMonthlyKpis, previousMonthKey, toMonthKey } from "@/lib/kpi/monthly";
+import { calcMonthlyKpis, previousMonthKey } from "@/lib/kpi/monthly";
 import { loadSampleRows, makeRow } from "../helpers/sample-rows";
 
 describe("月次 KPI（docs/sample-data.md の正解値と完全一致すること）", () => {
@@ -24,6 +24,10 @@ describe("月次 KPI（docs/sample-data.md の正解値と完全一致するこ�
     expect(kpis.map((k) => k.revenueMoM)).toEqual([null, -0.6, 79.5]);
   });
 
+  it("粗利の前月比も返す", () => {
+    expect(kpis.map((k) => k.grossProfitMoM)).toEqual([null, -0.9, 76.1]);
+  });
+
   it("月次リピート率が一致する", () => {
     expect(kpis.map((k) => k.buyerCount)).toEqual([12, 13, 15]);
     expect(kpis.map((k) => k.repeatBuyerCount)).toEqual([0, 5, 7]);
@@ -35,6 +39,27 @@ describe("前月の求め方", () => {
   it("年をまたぐ場合も正しく求める", () => {
     expect(previousMonthKey("2025-01")).toBe("2024-12");
     expect(previousMonthKey("2025-11")).toBe("2025-10");
+  });
+
+  it("形式が違う月を渡したら、黙って誤らずにエラーにする", () => {
+    expect(() => previousMonthKey("2025")).toThrowError("YYYY-MM");
+    expect(() => previousMonthKey("")).toThrowError("YYYY-MM");
+  });
+
+  it("12 月から 1 月をまたいでも前月比を出せる", () => {
+    const rows = [
+      makeRow({ order_date: "2025-12-01", revenue: 100, cost: 40 }),
+      makeRow({ order_date: "2026-01-01", revenue: 150, cost: 60 }),
+    ];
+    expect(calcMonthlyKpis(rows).map((k) => k.revenueMoM)).toEqual([null, 50]);
+  });
+
+  it("前月の売上が 0 なら、前月比は null（0 で割れないため）", () => {
+    const rows = [
+      makeRow({ order_date: "2025-10-01", revenue: 0, cost: 0 }),
+      makeRow({ order_date: "2025-11-01", revenue: 100, cost: 40 }),
+    ];
+    expect(calcMonthlyKpis(rows).map((k) => k.revenueMoM)).toEqual([null, null]);
   });
 
   it("月が抜けている場合、前月比は null にする", () => {
@@ -107,7 +132,4 @@ describe("境界のケース", () => {
     expect(calcMonthlyKpis(rows)[0].revenue).toBe(0.3);
   });
 
-  it("日付から月を取り出せる", () => {
-    expect(toMonthKey("2025-11-03")).toBe("2025-11");
-  });
 });

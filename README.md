@@ -251,15 +251,16 @@ URL ではなくシート ID を直接貼っても構いません。読み込む
 計算は `lib/kpi/` の **純粋関数**（入力だけで出力が決まり、データベースにも API にも触らない関数）で行います。
 画面はこの関数が返した数字を並べるだけなので、Excel との突き合わせは関数のテストだけで済みます。
 
-| 関数 | 返すもの |
-| --- | --- |
-| `calcMonthlyKpis(rows)` | 月ごとの売上・粗利・粗利率・購入者数・リピート率・前月比（古い月から順） |
-| `calcCategoryBreakdown(rows, { month })` | カテゴリ別の売上と構成比（売上の多い順） |
-| `calcTopSkus(rows, { month, limit })` | SKU ごとの売上と数量（既定は上位 10 件） |
-| `calcOverallRepeatRate(rows)` | 全期間の顧客数・リピーター数・リピート率 |
+どの関数を呼べばよいかの地図：
 
-「計算できない」場合は `0` ではなく `null` を返します（売上 0 円のときの粗利率、前月のデータが無いときの前月比など）。
-画面ではこれを「—」と表示します。
+| 関数 | 役割 |
+| --- | --- |
+| `calcMonthlyKpis(rows)` | 月次 KPI の一式 |
+| `calcCategoryBreakdown(rows, { month })` | カテゴリ別の売上と構成比 |
+| `calcTopSkus(rows, { month, limit })` | SKU ランキング |
+| `calcOverallRepeatRate(rows)` | 全期間のリピート率 |
+
+端数・`null`・並び順の規則は `.claude/skills/kpi-calculation/SKILL.md` の「端数と境界の扱い」を参照してください。
 
 ## 8. AI 分析の仕組み
 

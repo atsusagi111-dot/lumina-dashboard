@@ -40,6 +40,20 @@ describe("カテゴリ別売上（docs/sample-data.md の正解値と完全一�
     ]);
   });
 
+  it("売上が全部 0 なら、構成比は null（0% と区別する）", () => {
+    const result = calcCategoryBreakdown([makeRow({ category: "アウター", revenue: 0 })]);
+    expect(result[0].share).toBeNull();
+  });
+
+  it("構成比は丸める前の値から計算する（合計が 100% からずれない）", () => {
+    const result = calcCategoryBreakdown([
+      makeRow({ category: "A", revenue: 0.334 }),
+      makeRow({ category: "B", revenue: 0.333 }),
+      makeRow({ category: "C", revenue: 0.333 }),
+    ]);
+    expect(result.map((c) => c.share)).toEqual([33.4, 33.3, 33.3]);
+  });
+
   it("売上が同じなら名前順にして、実行のたびに順番が変わらないようにする", () => {
     const result = calcCategoryBreakdown([
       makeRow({ category: "ボトムス", revenue: 100 }),
@@ -64,6 +78,31 @@ describe("SKU ランキング（docs/sample-data.md の正解値と完全一致�
 
   it("件数は指定できる", () => {
     expect(calcTopSkus(rows, { limit: 3 })).toHaveLength(3);
+  });
+
+  it("件数に 0 や負の数を渡しても、余計な行を返さない", () => {
+    expect(calcTopSkus(rows, { limit: 0 })).toEqual([]);
+    expect(calcTopSkus(rows, { limit: -1 })).toEqual([]);
+  });
+
+  it("SKU の売上が同じなら SKU 名順にして、順番が変わらないようにする", () => {
+    const result = calcTopSkus([
+      makeRow({ sku: "LUM-TOP-02", revenue: 100 }),
+      makeRow({ sku: "LUM-OUT-01", revenue: 100 }),
+    ]);
+    expect(result.map((s) => s.sku)).toEqual(["LUM-OUT-01", "LUM-TOP-02"]);
+  });
+
+  it("同じ SKU に表記ゆれがあっても、商品名は入力順に左右されない", () => {
+    const forward = calcTopSkus([
+      makeRow({ sku: "LUM-OUT-01", product_name: "ウールコート" }),
+      makeRow({ sku: "LUM-OUT-01", product_name: "ウール コート" }),
+    ]);
+    const backward = calcTopSkus([
+      makeRow({ sku: "LUM-OUT-01", product_name: "ウール コート" }),
+      makeRow({ sku: "LUM-OUT-01", product_name: "ウールコート" }),
+    ]);
+    expect(forward[0].productName).toBe(backward[0].productName);
   });
 
   it("SKU が空の行は順位を付けられないので除外する", () => {

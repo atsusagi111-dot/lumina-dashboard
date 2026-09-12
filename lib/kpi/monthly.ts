@@ -4,7 +4,7 @@
 // 入力が同じなら必ず同じ結果になるので、Excel の集計と突き合わせて検証できる。
 
 import type { SalesRow } from "@/lib/sales-row";
-import { rateOf, roundMoney } from "@/lib/kpi/round";
+import { rateOf, roundMoney, toMonthKey } from "@/lib/kpi/round";
 
 export type MonthlyKpi = {
   /** "2025-11" の形 */
@@ -25,25 +25,34 @@ export type MonthlyKpi = {
   grossProfitMoM: number | null;
 };
 
-/** "2025-11-03" → "2025-11" */
-export function toMonthKey(orderDate: string): string {
-  return orderDate.slice(0, 7);
-}
+const MONTH_PATTERN = /^(\d{4})-(\d{2})$/;
 
 /**
  * カレンダー上の前月を返す。"2025-01" → "2024-12"
  *
  * 配列の 1 つ前ではなくカレンダーで求めるのは、
  * 10 月のデータが抜けている場合に 11 月と 9 月を比べてしまわないようにするため。
+ *
+ * Date を使わず文字列のまま計算している。Date は 2 桁の年を 1900 年代と解釈するなど
+ * 古い仕様が残っており、"0099-03" が "1999-02" になるような誤りを避けるため。
  */
 export function previousMonthKey(month: string): string {
-  const [year, monthNumber] = month.split("-").map(Number);
-  const date = new Date(Date.UTC(year, monthNumber - 1, 1));
-  date.setUTCMonth(date.getUTCMonth() - 1);
-  return date.toISOString().slice(0, 7);
+  const matched = MONTH_PATTERN.exec(month);
+  if (!matched) {
+    throw new Error(`月の形式が正しくありません（期待：YYYY-MM、実際：${month}）`);
+  }
+
+  const year = Number(matched[1]);
+  const monthNumber = Number(matched[2]);
+  const isJanuary = monthNumber === 1;
+
+  return `${String(isJanuary ? year - 1 : year).padStart(4, "0")}-${String(
+    isJanuary ? 12 : monthNumber - 1,
+  ).padStart(2, "0")}`;
 }
 
 type MonthBucket = {
+  /** 丸める前の生の合計。率の計算はこちらを使う */
   revenue: number;
   cost: number;
   customerIds: Set<string>;
@@ -87,46 +96,42 @@ function firstPurchaseMonthByCustomer(rows: SalesRow[]): Map<string, string> {
  *
  * リピート率の定義：その月に買った人のうち、その月より前にも買ったことがある人の割合。
  * 最初の月は「過去に買った人が 0 人」なので 0.0%（null ではない）。
+ *
+ * 丸めるのは返す直前の 1 回だけ。率は丸める前の生の合計から計算する。
  */
 export function calcMonthlyKpis(rows: SalesRow[]): MonthlyKpi[] {
   const months = groupByMonth(rows);
   const firstMonths = firstPurchaseMonthByCustomer(rows);
 
-  const totals = new Map<string, { revenue: number; grossProfit: number }>();
-  for (const [month, bucket] of months) {
-    totals.set(month, {
-      revenue: roundMoney(bucket.revenue),
-      grossProfit: roundMoney(bucket.revenue - bucket.cost),
-    });
-  }
-
-  return [...months.keys()]
-    .sort()
-    .map((month) => {
-      const bucket = months.get(month)!;
-      const total = totals.get(month)!;
+  return [...months.entries()]
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([month, bucket]) => {
+      const grossProfit = bucket.revenue - bucket.cost;
 
       const buyerCount = bucket.customerIds.size;
       let repeatBuyerCount = 0;
       for (const customerId of bucket.customerIds) {
         // 初めて買った月がこの月より前 = すでに購入履歴がある人
-        if ((firstMonths.get(customerId) ?? month) < month) repeatBuyerCount += 1;
+        const firstMonth = firstMonths.get(customerId);
+        if (firstMonth !== undefined && firstMonth < month) repeatBuyerCount += 1;
       }
 
-      const previous = totals.get(previousMonthKey(month));
+      const previous = months.get(previousMonthKey(month));
+      const previousGrossProfit = previous ? previous.revenue - previous.cost : null;
 
       return {
         month,
-        revenue: total.revenue,
-        grossProfit: total.grossProfit,
-        grossMarginRate: rateOf(total.grossProfit, total.revenue),
+        revenue: roundMoney(bucket.revenue),
+        grossProfit: roundMoney(grossProfit),
+        grossMarginRate: rateOf(grossProfit, bucket.revenue),
         buyerCount,
         repeatBuyerCount,
         repeatRate: buyerCount === 0 ? null : rateOf(repeatBuyerCount, buyerCount),
-        revenueMoM: previous ? rateOf(total.revenue - previous.revenue, previous.revenue) : null,
-        grossProfitMoM: previous
-          ? rateOf(total.grossProfit - previous.grossProfit, previous.grossProfit)
-          : null,
+        revenueMoM: previous ? rateOf(bucket.revenue - previous.revenue, previous.revenue) : null,
+        grossProfitMoM:
+          previousGrossProfit === null
+            ? null
+            : rateOf(grossProfit - previousGrossProfit, previousGrossProfit),
       };
     });
 }
