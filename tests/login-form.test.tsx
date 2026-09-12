@@ -7,7 +7,7 @@ vi.mock("@/app/login/actions", () => ({ signIn }));
 
 describe("ログインフォーム", () => {
   it("メール欄・パスワード欄・ログインボタンを表示する", () => {
-    render(<LoginForm />);
+    render(<LoginForm nextPath="/" />);
 
     expect(screen.getByLabelText("メールアドレス")).toBeInTheDocument();
     expect(screen.getByLabelText("パスワード")).toBeInTheDocument();
@@ -15,7 +15,7 @@ describe("ログインフォーム", () => {
   });
 
   it("新規登録の導線は置かない（招待制のため）", () => {
-    render(<LoginForm />);
+    render(<LoginForm nextPath="/" />);
 
     expect(screen.queryByText(/新規登録/)).not.toBeInTheDocument();
   });

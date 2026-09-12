@@ -1,17 +1,11 @@
 -- ============================================================
--- 0002_rls.sql — RLS（行ごとのアクセス制限）の設定
--- 0001_init.sql の後に、SQL Editor で Run してください。
+-- 0002_rls.sql — RLS のポリシー（誰が何をできるか）
+-- RLS の説明と、テーブルごとに何が見えるかは README §5-5 を参照してください。
+-- RLS の有効化そのものは 0001_init.sql で実施済みです。
 --
--- RLS とは：テーブルの「行」単位で誰が読み書きできるかをデータベース自身に守らせる仕組み。
--- アプリ側のコードに書き忘れがあっても、他人の行は返ってきません。
---
--- ポイント：auth.uid() は「今ログインしている人の ID」。
+-- auth.uid() は「今ログインしている人の ID」。
 -- (select auth.uid()) と書くと 1 行ごとに計算し直さないので速くなります（Supabase 推奨）。
 -- ============================================================
-
-alter table public.uploads enable row level security;
-alter table public.sales_data enable row level security;
-alter table public.reports enable row level security;
 
 -- 何度実行してもよいように、同名のポリシーがあれば消してから作り直す
 drop policy if exists "uploads_own_rows" on public.uploads;

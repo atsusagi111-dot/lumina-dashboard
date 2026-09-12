@@ -6,11 +6,11 @@ import { signIn, type LoginState } from "./actions";
 const INITIAL_STATE: LoginState = { error: null };
 
 type Props = {
-  /** ログイン後に戻る先。proxy.ts が ?next= に入れてくれる */
-  nextPath?: string;
+  /** ログイン後に戻る先。検証済みの値を page.tsx から受け取る */
+  nextPath: string;
 };
 
-export function LoginForm({ nextPath = "/" }: Props) {
+export function LoginForm({ nextPath }: Props) {
   // useActionState: 送信結果（エラー文）と送信中かどうかを React が管理してくれる仕組み
   const [state, formAction, isPending] = useActionState(signIn, INITIAL_STATE);
 
