@@ -1,5 +1,7 @@
 # LUMINA 売上分析ダッシュボード（AI 搭載）
 
+[![CI](https://github.com/atsusagi111-dot/lumina-dashboard/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/atsusagi111-dot/lumina-dashboard/actions/workflows/ci.yml)
+
 アパレル EC ブランド「LUMINA」のマーケティング担当者向けに、**月次報告の作業時間を 3 時間 → 30 分に短縮**するためのダッシュボードです。
 Google スプレッドシートに貼った売上データを読み込み、3 大 KPI（売上・粗利・リピート率）をグラフ化し、OpenAI が「今月のサマリー」と「翌月のアクション提案」をコンサルトーンで生成します。
 
@@ -44,7 +46,7 @@ Google スプレッドシートに貼った売上データを読み込み、3 �
 4. カテゴリ別売上 / SKU トップ 10
 5. OpenAI による AI 分析コメント（JSON 構造化出力）
 6. ブランドカラー + レスポンシブ対応
-7. GitHub Actions による CI（型チェック + Lint + テスト）
+7. GitHub Actions による CI（型チェック + Lint + テスト + 本番ビルド）
 
 ## 2. 画面イメージ
 
@@ -72,7 +74,7 @@ Next.js（App Router, TypeScript, Tailwind）on Vercel
         ├─▶ Supabase（PostgreSQL / Auth）
         └─▶ OpenAI API（分析コメント生成）
 
-GitHub → Push → GitHub Actions（型チェック + Lint + テスト）→ Vercel 本番デプロイ
+GitHub → Push → GitHub Actions（型チェック + Lint + テスト + 本番ビルド）→ Vercel 本番デプロイ
 ```
 
 | 役割 | 技術 | 一言補足 |
@@ -99,7 +101,7 @@ GitHub → Push → GitHub Actions（型チェック + Lint + テスト）→ Ve
 | 4 | KPI 集計ロジック（純粋関数 + ユニットテスト） | kpi | ✅ | 2026-09-12 |
 | 5 | ダッシュボード UI（KPI カード・グラフ・ランキング） | dashboard-ui | ✅ | 2026-09-13 |
 | 6 | OpenAI 分析コメント + Snapshot テスト | ai-analysis | ✅ | 2026-09-13 |
-| 7 | CI/CD（GitHub Actions + Vercel） | ci | ⬜ | |
+| 7 | CI/CD（GitHub Actions + Vercel） | ci | ✅ | 2026-09-13 |
 | 8 | README 仕上げ・納品準備 | release | ⬜ | |
 
 ## 5. セットアップ手順
@@ -216,6 +218,37 @@ RLS はその内側にあるもう 1 枚の壁で、アプリにバグがあっ�
 | publishable key | ブラウザに出てよい | 読み書きの範囲は RLS が制限する |
 | secret key | サーバーのみ | **RLS を無視できる**ので、絶対に公開しない。`NEXT_PUBLIC_` を付けない |
 
+### 5-6. Vercel へのデプロイ（インターネットに公開する）
+
+手元の `pnpm dev` は自分のパソコンでしか開けません。クライアントに URL を渡すには Vercel に載せます。
+
+**① プロジェクトを作る（最初の 1 回だけ）**
+1. https://vercel.com に **GitHub アカウントで** サインイン
+2. 「Add New…」→「Project」→ `atsusagi111-dot/lumina-dashboard` を **Import**
+3. Framework は Next.js が自動で選ばれます。そのままで構いません
+
+**② 環境変数を登録する（ここが一番大事）**
+
+`.env.local` に書いた値と同じものを、Vercel の **Environment Variables** に登録します。
+`.env.local` はコミットされないため、登録しないとログインも取り込みも動きません。
+
+- 登録するキーの一覧と意味は **`.env.example`** を見てください（キーの唯一の正はこのファイルです）。
+- **Environment は Production / Preview / Development の 3 つともチェック**を入れてください。
+  Preview に入れ忘れると、本番は動くのにプレビュー用の URL だけが落ちて原因が分かりにくくなります。
+- `GOOGLE_PRIVATE_KEY` だけ貼り方に注意：`\n` を含む 1 行のまま貼り、**前後のダブルクォートは付けません**
+  （`.env.local` ではクォートで囲みますが、Vercel の入力欄では不要です）。
+
+**③ Deploy を押す**
+
+数分で URL（`https://<プロジェクト名>.vercel.app`）が発行されます。
+
+**④ 以降は自動**
+
+`main` に push するたびに、Vercel が自動でビルドして本番を更新します。
+
+> **環境変数を後から足したり直したりしたときは、再デプロイが必要です。**
+> Vercel の Deployments 画面 → 最新のデプロイの「…」→ Redeploy を押してください。
+
 ## 6. スプレッドシートの準備方法
 
 この節がスプレッドシートの列仕様と共有手順の唯一の正です。クライアントにはこの節を案内してください。
@@ -327,6 +360,26 @@ URL ではなくシート ID を直接貼っても構いません。読み込む
 
 worktree の作成・片付けコマンドは [CLAUDE.md §1](CLAUDE.md) を参照。
 
+### CI（GitHub Actions）— push したら自動で検査
+
+`.github/workflows/ci.yml` に書いてあります。**`main` と `feature/**` への push、および Pull Request のとき**に、
+GitHub のパソコンが手元と同じ検査を順に流します。
+作業中のブランチでも走らせるのは、この案件が Pull Request を作らず手元で main に merge する進め方のため、
+main に入ってから気づくのでは手遅れだからです。
+
+| 順番 | 内容 | 落ちたときの意味 |
+| --- | --- | --- |
+| 1 | `pnpm install --frozen-lockfile` | `package.json` を変えたのに `pnpm-lock.yaml` を更新していない |
+| 2 | `pnpm lint` | 書き方の問題。手元で `pnpm lint` を実行すると同じ内容が出る |
+| 3 | `pnpm type-check` | 型が合っていない |
+| 4 | `pnpm test` | テストが失敗。壊した箇所が分かる |
+| 5 | `pnpm build` | 本番ビルドが通らない（画面の組み立てで失敗） |
+
+- 結果は GitHub の **Actions** タブと、README 冒頭のバッジ（緑／赤）で分かります。
+- ビルドには**ダミーの環境変数**を渡しています。本物の鍵は Vercel 側にだけ登録します（[§5-6](#5-6-vercel-へのデプロイインターネットに公開する)）。
+- `pnpm test:analysis`（OpenAI を実際に呼ぶテスト）は **CI では実行しません**。呼ぶたびに課金されるためです。
+- 料金は [§10 月額コスト試算](#10-月額コスト試算) を参照。
+
 ### ディレクトリ構成（現在）
 ```
 app/                  画面（App Router）。layout.tsx = 共通の枠、page.tsx = トップページ、globals.css = ブランドカラー
@@ -348,6 +401,8 @@ components/dashboard/ ダッシュボードの部品（KPI カード・月切り
 tests/                テスト一式。fixtures/sample-sales.csv（テストで使う売上データ）
 case8-sales-sample.csv 受領時の原本。内容は fixtures と同じで、こちらは変更しない
 docs/                 補足ドキュメント（正解値、画面イメージ）
+.github/workflows/    CI の設定（push したときに自動で走る検査）
+.nvmrc                使う Node.js のバージョン（手元・CI・Vercel を揃えるため）
 .claude/              commands（/code-review, /simplify）、hooks、skills、settings.json
 CLAUDE.md             開発ルール
 .env.example          環境変数のキー名一覧
@@ -361,7 +416,14 @@ Tailwind 4 には `tailwind.config.ts` がなく、色は CSS に直接書きま
 
 ## 10. 月額コスト試算
 
-Task 8 で確定。目安：Vercel Hobby（0 円）+ Supabase Free（0 円）+ OpenAI（月 100 回で約 10 円）= **5,000 円以内**。
+Task 8 で確定。目安：Vercel Hobby（0 円）+ Supabase Free（0 円）+ GitHub Actions（0 円）+ OpenAI（月 100 回で約 10 円）= **約 10 円**。
+
+> **Vercel Hobby は「非商用・個人利用のみ」**（[Vercel の規約](https://vercel.com/docs/limits/fair-use-guidelines#commercial-usage)）。
+> このプロジェクトは**デモ用途のため Hobby を使っています**。クライアントが実際の業務で使い始める段階では
+> **Pro（$20/月・約 3,000 円）への切り替えが必要**です。その場合でも合計は約 3,010 円で、予算の 5,000 円以内に収まります。
+
+GitHub Actions は Private リポジトリでも月 2,000 分無料（Public なら無制限。超過分は Linux ランナーで 1 分 $0.006）。
+1 回の検査が 3〜5 分なので、月 20 回 push しても 100 分程度です。
 
 ### AI 分析 1 回あたりのコスト（2026-09-13 に公式価格を確認）
 `gpt-4o-mini` は入力 $0.15 / 100 万トークン、出力 $0.60 / 100 万トークン。
@@ -405,5 +467,8 @@ Task 8 で確定。目安：Vercel Hobby（0 円）+ Supabase Free（0 円）+ O
 | `pnpm test:analysis` が「スキップ」と出る | `.env.local` に `OPENAI_API_KEY` が無い。キーを設定すると実行される（実行するたびに少額の課金が発生する） |
 | SQL Editor で `column "target_month" contains null values` と出る | `reports` に古い行が残っている。中身を確認してから消すか、月を埋めてから `0004` を Run する |
 | グラフだけが表示されない | グラフはブラウザ側で描画するため、JavaScript が無効だと出ない。KPI カードと SKU 表は表示される |
+| CI が `ERR_PNPM_OUTDATED_LOCKFILE` で落ちる | `package.json` を変えたのに `pnpm-lock.yaml` を更新していない。手元で `pnpm install` を実行し、更新された lock ファイルも一緒にコミットする |
+| Vercel のデプロイは成功したのに、画面に「環境変数 ... が設定されていません」と出る | Vercel 側の Environment Variables が未登録か、登録後に再デプロイしていない（[§5-6](#5-6-vercel-へのデプロイインターネットに公開する)） |
+| Vercel でログインできるのにスプレッドシート取り込みだけ失敗する | `GOOGLE_PRIVATE_KEY` の貼り方が違う。[§5-6 ②](#5-6-vercel-へのデプロイインターネットに公開する) を参照 |
 | hooks が「pnpm が見つかりません」と言う | `npm i -g pnpm` を実行し、Claude Code を再起動する |
 | hooks が動かない | `node -v` で Node が入っているか確認。`.claude/settings.json` の JSON が壊れていないか `node -e "JSON.parse(require('fs').readFileSync('.claude/settings.json','utf8'))"` で確認 |
