@@ -92,7 +92,7 @@ GitHub → Push → GitHub Actions（型チェック + Lint + テスト）→ Ve
 | 2 | Supabase 接続・DB スキーマ・ログイン画面・RLS | supabase | ✅ | 2026-09-12 |
 | 3 | Google スプレッドシート取り込み + バリデーション | sheets-import | ✅ | 2026-09-12 |
 | 4 | KPI 集計ロジック（純粋関数 + ユニットテスト） | kpi | ✅ | 2026-09-12 |
-| 5 | ダッシュボード UI（KPI カード・グラフ・ランキング） | dashboard-ui | ⬜ | |
+| 5 | ダッシュボード UI（KPI カード・グラフ・ランキング） | dashboard-ui | ✅ | 2026-09-13 |
 | 6 | OpenAI 分析コメント + Snapshot テスト | ai-analysis | ⬜ | |
 | 7 | CI/CD（GitHub Actions + Vercel） | ci | ⬜ | |
 | 8 | README 仕上げ・納品準備 | release | ⬜ | |
@@ -241,6 +241,9 @@ URL ではなくシート ID を直接貼っても構いません。読み込む
 
 同じシートを何度取り込んでも構いません。そのたびに新しい取り込み記録として追加され、履歴が残ります。
 
+**ダッシュボードが集計するのは、いちばん新しい取り込み 1 件だけです。** 取り込み直しても売上が二重に数えられることはありません。
+そのかわり、シートには **全期間の売上を貯めておいてください**（毎月その月の分だけを貼り替えて取り込むと、過去の月がダッシュボードから消えます）。
+
 サンプルデータと集計の正解値は [docs/sample-data.md](docs/sample-data.md) を参照。
 
 ## 7. KPI の定義
@@ -261,6 +264,13 @@ URL ではなくシート ID を直接貼っても構いません。読み込む
 | `calcOverallRepeatRate(rows)` | 全期間のリピート率 |
 
 端数・`null`・並び順の規則は `.claude/skills/kpi-calculation/SKILL.md` の「端数と境界の扱い」を参照してください。
+
+### 画面での見せ方（Task 5）
+- 表示する月は画面右上のボタンで切り替えます。URL（`/?month=2025-10`）に入るので、その月の画面をそのまま共有できます。
+- 既定では **いちばん新しい月** を開きます。データの無い月を URL で指定された場合も、最新月に戻します。
+- 「計算できない」ものは `0` ではなく **—** と表示します（前月のデータが無い月の前月比など）。
+- グラフは Recharts。棒＝売上・粗利（左軸）、折れ線＝リピート率（右軸）。カテゴリ別は横棒（日本語のカテゴリ名が読みやすいため）。
+- 数字の整形（`￥264,700` / `46.7%` / `+79.5%` と色分け）は `lib/dashboard/format.ts` に集約しています。
 
 ## 8. AI 分析の仕組み
 
@@ -307,6 +317,7 @@ app/login/            ログイン画面と Server Action（ログイン・ロ�
 app/import/           取り込み画面と Server Action（読み込み・検査・保存）
 lib/sheets/           スプレッドシートの ID 取り出し・読み込み・検査
 lib/kpi/              KPI 集計の純粋関数（monthly = 月次、breakdown = カテゴリと SKU、round = 端数処理）
+lib/dashboard/        画面用の準備（load-sales-rows = DB からの読み出し、format = 表示の整形、select-month = 表示する月の決定）
 lib/sales-row.ts      売上 1 行の型（取り込み側と集計側の共通）
 lib/env.ts            環境変数の読み込み。未設定なら日本語で案内して止める
 lib/auth/             ログインが要るかの判定、エラー文の日本語化
@@ -315,6 +326,7 @@ proxy.ts              全ページの表示前に走る入口（Next.js 16 で m
 supabase/migrations/  DB のテーブル定義と RLS 設定の SQL
 public/               画像などそのまま配信するファイル
 components/           UI 部品（site-header.tsx など）
+components/dashboard/ ダッシュボードの部品（KPI カード・月切り替え・グラフ 2 種・SKU 表）
 tests/                テスト一式。fixtures/sample-sales.csv（テストで使う売上データ）
 case8-sales-sample.csv 受領時の原本。内容は fixtures と同じで、こちらは変更しない
 docs/                 補足ドキュメント（正解値、画面イメージ）
@@ -362,5 +374,8 @@ Task 8 で確定。目安：Vercel Hobby（0 円）+ Supabase Free（0 円）+ O
 | 型エラー `Cannot find name 'LayoutProps'` | Next.js が生成する型がまだ無い状態。`pnpm type-check` は `next typegen` で先に型を作るので、単体で `tsc` を実行したときだけ起きる |
 | `.claude/settings.json` を変えたのに hooks が動かない | hooks は Claude Code の起動時に読み込まれる。Claude Code を再起動する |
 | git で `CRLF will be replaced by LF` と警告が出る | Windows の改行コード（CRLF）を `.gitattributes` の設定で LF に統一するときの通知。無視してよい。逆に `LF will be replaced by CRLF` と出たら `.gitattributes` が効いていないので確認する |
+| ダッシュボードの数字が思ったより少ない・多い | 集計対象は **いちばん新しい取り込み 1 件だけ**。その月だけを貼ったシートを取り込むと、過去の月が消える（[§6 ③](#6-スプレッドシートの準備方法) を参照）。取り込み画面の履歴で、最後に取り込んだシート名と件数を確認する |
+| 「売上データを読み込めませんでした」と出る | 一時的な通信エラーのほか、1 回の取り込みが 5 万行を超えると出る。行数を減らすか、期間を分けて取り込む |
+| グラフだけが表示されない | グラフはブラウザ側で描画するため、JavaScript が無効だと出ない。KPI カードと SKU 表は表示される |
 | hooks が「pnpm が見つかりません」と言う | `npm i -g pnpm` を実行し、Claude Code を再起動する |
 | hooks が動かない | `node -v` で Node が入っているか確認。`.claude/settings.json` の JSON が壊れていないか `node -e "JSON.parse(require('fs').readFileSync('.claude/settings.json','utf8'))"` で確認 |
