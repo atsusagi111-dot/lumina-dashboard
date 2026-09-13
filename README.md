@@ -39,7 +39,8 @@ Google スプレッドシートに貼った売上データを読み込み、3 �
 | 予算 | 初期 44〜45 万円 / 月額 5,000 円以内 |
 | 納期 | 10 営業日（MVP） |
 | 本番 URL | https://lumina-dashboard-seven.vercel.app |
-| リポジトリ | https://github.com/atsusagi111-dot/lumina-dashboard （Private） |
+| リポジトリ | https://github.com/atsusagi111-dot/lumina-dashboard |
+| 運用マニュアル（紙 1 枚） | [docs/運用マニュアル.pdf](docs/運用マニュアル.pdf)（元データ：[docs/operation-manual.html](docs/operation-manual.html)） |
 
 ### MVP に含めるもの
 1. Google スプレッドシート連携（URL 入力 → 読み込み → Supabase に保存）
