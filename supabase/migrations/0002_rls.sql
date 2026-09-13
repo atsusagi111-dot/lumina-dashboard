@@ -3,6 +3,9 @@
 -- RLS の説明と、テーブルごとに何が見えるかは README §5-5 を参照してください。
 -- RLS の有効化そのものは 0001_init.sql で実施済みです。
 --
+-- 【前提】このファイルは 0005 以降のスキーマ（reports に user_id がある状態）を想定しています。
+-- 既存のデータベースで再実行する場合は、先に 0005_reports_by_user.sql を Run してください。
+--
 -- auth.uid() は「今ログインしている人の ID」。
 -- (select auth.uid()) と書くと 1 行ごとに計算し直さないので速くなります（Supabase 推奨）。
 -- ============================================================
@@ -40,22 +43,10 @@ create policy "sales_data_own_rows"
     )
   );
 
--- reports：sales_data と同じ考え方
+-- reports：分析そのものに所有者（user_id）を持たせているので、直接くらべる
 create policy "reports_own_rows"
   on public.reports
   for all
   to authenticated
-  using (
-    exists (
-      select 1 from public.uploads
-      where uploads.id = reports.upload_id
-        and uploads.user_id = (select auth.uid())
-    )
-  )
-  with check (
-    exists (
-      select 1 from public.uploads
-      where uploads.id = reports.upload_id
-        and uploads.user_id = (select auth.uid())
-    )
-  );
+  using (user_id = (select auth.uid()))
+  with check (user_id = (select auth.uid()));

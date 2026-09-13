@@ -27,7 +27,7 @@ export const metadata: Metadata = {
  * KPI の計算式は lib/kpi/ に、表示の整形は lib/dashboard/format.ts にある（CLAUDE.md §3）。
  */
 export default async function HomePage(props: PageProps<"/">) {
-  const { supabase } = await requireUser();
+  const { supabase, userId } = await requireUser();
 
   const loaded = await loadSalesRows(supabase);
   // 読み込み失敗を「0 件」と区別する。取り込み済みなのに未取り込みに見えると、二重取り込みの原因になる
@@ -48,7 +48,7 @@ export default async function HomePage(props: PageProps<"/">) {
   const categories = calcCategoryBreakdown(loaded.rows, { month: selectedMonth });
   const topSkus = calcTopSkus(loaded.rows, { month: selectedMonth, limit: 10 });
   const overall = calcOverallRepeatRate(loaded.rows);
-  const report = await loadReport(supabase, loaded.uploadId, selectedMonth);
+  const report = await loadReport(supabase, userId, selectedMonth);
 
   return (
     <div className="space-y-8">
@@ -133,15 +133,13 @@ export default async function HomePage(props: PageProps<"/">) {
  */
 async function loadReport(
   supabase: SupabaseClient<Database>,
-  uploadId: string | null,
+  userId: string,
   targetMonth: string,
 ) {
-  if (!uploadId) return null;
-
   const { data, error } = await supabase
     .from("reports")
     .select("summary, highlights, concerns, actions, generated_at")
-    .eq("upload_id", uploadId)
+    .eq("user_id", userId)
     .eq("target_month", targetMonth)
     .maybeSingle();
 

@@ -59,7 +59,10 @@ export type Database = {
       reports: {
         Row: {
           id: string;
-          upload_id: string;
+          /** 分析の持ち主。RLS はこの列で判定する */
+          user_id: string;
+          /** どの取り込みのデータで作ったかの記録。取り込みが消えると null になる */
+          upload_id: string | null;
           /** 対象の月（"2025-11" の形） */
           target_month: string;
           summary: string;
@@ -70,7 +73,8 @@ export type Database = {
         };
         Insert: {
           id?: string;
-          upload_id: string;
+          user_id?: string;
+          upload_id?: string | null;
           target_month: string;
           summary: string;
           highlights?: unknown;
