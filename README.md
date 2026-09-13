@@ -233,8 +233,12 @@ RLS はその内側にあるもう 1 枚の壁で、アプリにバグがあっ�
 `.env.local` はコミットされないため、登録しないとログインも取り込みも動きません。
 
 - 登録するキーの一覧と意味は **`.env.example`** を見てください（キーの唯一の正はこのファイルです）。
-- **Environment は Production / Preview / Development の 3 つともチェック**を入れてください。
-  Preview に入れ忘れると、本番は動くのにプレビュー用の URL だけが落ちて原因が分かりにくくなります。
+- **Environments は「Production and Preview」**を選びます（Development は `vercel dev` を使う場合だけ必要で、このプロジェクトでは使いません）。
+- **`NEXT_PUBLIC_` で始まる 2 つは Type を「Config」にします。**「Secret」で登録すると値がアプリに渡らず、
+  **全ページが 500（Internal Server Error）になります**。`NEXT_PUBLIC_` はブラウザにも埋め込む前提の値で、
+  「ブラウザに出さない値」である Secret とは両立しないためです。
+  この 2 つが公開されても安全なのは、できることを RLS が制限しているからです（[§5-5](#5-5-ログインとデータの守り方)）。
+- 残り（`SUPABASE_SECRET_KEY` / `OPENAI_API_KEY` / `GOOGLE_PRIVATE_KEY` など）は **Secret** のままにします。
 - `GOOGLE_PRIVATE_KEY` だけ貼り方に注意：`\n` を含む 1 行のまま貼り、**前後のダブルクォートは付けません**
   （`.env.local` ではクォートで囲みますが、Vercel の入力欄では不要です）。
 
@@ -468,6 +472,8 @@ GitHub Actions は Private リポジトリでも月 2,000 分無料（Public な
 | SQL Editor で `column "target_month" contains null values` と出る | `reports` に古い行が残っている。中身を確認してから消すか、月を埋めてから `0004` を Run する |
 | グラフだけが表示されない | グラフはブラウザ側で描画するため、JavaScript が無効だと出ない。KPI カードと SKU 表は表示される |
 | CI が `ERR_PNPM_OUTDATED_LOCKFILE` で落ちる | `package.json` を変えたのに `pnpm-lock.yaml` を更新していない。手元で `pnpm install` を実行し、更新された lock ファイルも一緒にコミットする |
+| Vercel でデプロイは成功したのに、全ページが `Internal Server Error`（500）になる | `NEXT_PUBLIC_` で始まる変数を **Secret** で登録している。Config で登録し直す（[§5-6 ②](#5-6-vercel-へのデプロイインターネットに公開する)）。Vercel の Logs に「環境変数 ... が設定されていません」と日本語で出ていれば、これが原因 |
+| Vercel で Secret を Config に変えられない（`Saved secrets are write-only` と出る） | 仕様上あとから変更できない。その変数を削除してから、Config で登録し直す |
 | Vercel のデプロイは成功したのに、画面に「環境変数 ... が設定されていません」と出る | Vercel 側の Environment Variables が未登録か、登録後に再デプロイしていない（[§5-6](#5-6-vercel-へのデプロイインターネットに公開する)） |
 | Vercel でログインできるのにスプレッドシート取り込みだけ失敗する | `GOOGLE_PRIVATE_KEY` の貼り方が違う。[§5-6 ②](#5-6-vercel-へのデプロイインターネットに公開する) を参照 |
 | hooks が「pnpm が見つかりません」と言う | `npm i -g pnpm` を実行し、Claude Code を再起動する |
