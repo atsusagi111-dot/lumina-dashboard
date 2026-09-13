@@ -1,15 +1,19 @@
 import type { Metadata } from "next";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import Link from "next/link";
+import { AnalysisPanel } from "@/components/dashboard/analysis-panel";
 import { CategoryChart } from "@/components/dashboard/category-chart";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { MonthSwitcher } from "@/components/dashboard/month-switcher";
 import { MonthlyTrendChart } from "@/components/dashboard/monthly-trend-chart";
 import { SkuTable } from "@/components/dashboard/sku-table";
+import { parseStoredReport } from "@/lib/analysis/stored-report";
 import { formatDateTime, formatMonthLabel, formatPercent, formatYen } from "@/lib/dashboard/format";
 import { loadSalesRows } from "@/lib/dashboard/load-sales-rows";
 import { selectMonth } from "@/lib/dashboard/select-month";
 import { calcCategoryBreakdown, calcOverallRepeatRate, calcTopSkus } from "@/lib/kpi/breakdown";
 import { calcMonthlyKpis, previousMonthKey } from "@/lib/kpi/monthly";
+import type { Database } from "@/lib/supabase/database.types";
 import { requireUser } from "@/lib/supabase/require-user";
 
 export const metadata: Metadata = {
@@ -44,6 +48,7 @@ export default async function HomePage(props: PageProps<"/">) {
   const categories = calcCategoryBreakdown(loaded.rows, { month: selectedMonth });
   const topSkus = calcTopSkus(loaded.rows, { month: selectedMonth, limit: 10 });
   const overall = calcOverallRepeatRate(loaded.rows);
+  const report = await loadReport(supabase, loaded.uploadId, selectedMonth);
 
   return (
     <div className="space-y-8">
@@ -99,6 +104,9 @@ export default async function HomePage(props: PageProps<"/">) {
         </p>
       </section>
 
+      {/* key に月を入れて、月を切り替えたら生成ボタンの状態（エラー表示など）をリセットする */}
+      <AnalysisPanel key={selectedMonth} targetMonth={selectedMonth} report={report} />
+
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         <section className="rounded-lg border border-navy-pale bg-surface p-5">
           <h2 className="text-base font-bold text-navy">カテゴリ別売上</h2>
@@ -117,6 +125,31 @@ export default async function HomePage(props: PageProps<"/">) {
       </div>
     </div>
   );
+}
+
+/**
+ * 保存済みの AI 分析を 1 件読む。
+ * 読めなくても画面の他の部分は出したいので、失敗は null（＝未生成扱い）にしてログだけ残す。
+ */
+async function loadReport(
+  supabase: SupabaseClient<Database>,
+  uploadId: string | null,
+  targetMonth: string,
+) {
+  if (!uploadId) return null;
+
+  const { data, error } = await supabase
+    .from("reports")
+    .select("summary, highlights, concerns, actions, generated_at")
+    .eq("upload_id", uploadId)
+    .eq("target_month", targetMonth)
+    .maybeSingle();
+
+  if (error) {
+    console.error("AI 分析の読み込みに失敗しました", error);
+    return null;
+  }
+  return parseStoredReport(data);
 }
 
 /** まだ 1 件も取り込んでいない人に出す案内 */

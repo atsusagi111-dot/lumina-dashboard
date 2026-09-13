@@ -48,11 +48,16 @@ Google スプレッドシートに貼った売上データを読み込み、3 �
 
 ## 2. 画面イメージ
 
-Task 2 時点の画面（Task 5 でダッシュボードに差し替え）。
-
-| ログイン後のトップ（PC） | ログイン画面（スマホ 375px） |
+| ダッシュボード（PC） | ダッシュボード（スマホ 375px） |
 | --- | --- |
-| ![PC](docs/images/task2-home-desktop.jpg) | ![スマホ](docs/images/task2-login-mobile.png) |
+| ![PC](docs/images/task6-dashboard-desktop.jpg) | ![スマホ](docs/images/task6-dashboard-mobile.png) |
+
+AI 分析コメント（生成後）:
+
+![AI 分析コメント](docs/images/task6-ai-analysis.png)
+
+スマホ幅の確認方法：ブラウザの開発者ツール（F12）→ 端末ツールバー（Ctrl + Shift + M）→ 幅を 375px にする。
+横スクロールが出ないこと、KPI カードが縦に並ぶこと、グラフの目盛りが読めることを確認します。
 
 ## 3. 技術構成図
 
@@ -93,7 +98,7 @@ GitHub → Push → GitHub Actions（型チェック + Lint + テスト）→ Ve
 | 3 | Google スプレッドシート取り込み + バリデーション | sheets-import | ✅ | 2026-09-12 |
 | 4 | KPI 集計ロジック（純粋関数 + ユニットテスト） | kpi | ✅ | 2026-09-12 |
 | 5 | ダッシュボード UI（KPI カード・グラフ・ランキング） | dashboard-ui | ✅ | 2026-09-13 |
-| 6 | OpenAI 分析コメント + Snapshot テスト | ai-analysis | ⬜ | |
+| 6 | OpenAI 分析コメント + Snapshot テスト | ai-analysis | ✅ | 2026-09-13 |
 | 7 | CI/CD（GitHub Actions + Vercel） | ci | ⬜ | |
 | 8 | README 仕上げ・納品準備 | release | ⬜ | |
 
@@ -129,7 +134,7 @@ pnpm dev                            # http://localhost:3000 を開く
 | `pnpm lint` | ESLint |
 | `pnpm type-check` | TypeScript の型チェック |
 | `pnpm test` | ユニットテスト（Vitest。`tests/**/*.test.ts(x)` を実行） |
-| `pnpm test:analysis` | AI 分析の Snapshot テスト（Task 6 で追加。OpenAI を実際に呼ぶ） |
+| `pnpm test:analysis` | AI 分析の Snapshot テスト。**実際に OpenAI を呼ぶ**ので 1 回あたり 1 円未満の費用がかかる。プロンプトを変えたときだけ実行する（`pnpm test` には含まれない） |
 
 ### 5-4. Supabase の準備
 
@@ -171,6 +176,7 @@ pnpm dev                            # http://localhost:3000 を開く
 | 差分ファイル | 内容 | 誰が Run する必要があるか |
 | --- | --- | --- |
 | `0003_constraints.sql` | 数量・金額のマイナス禁止、レポートの重複防止、索引の見直し | 2026-09-12 より前に `0001` を Run した人 |
+| `0004_reports_month.sql` | AI 分析レポートを「取り込み × 月」で持てるようにする（`target_month` 列の追加） | 2026-09-13 より前に `0001` を Run した人 |
 
 **④ 利用者のアカウントを作る（招待制）**
 
@@ -274,9 +280,20 @@ URL ではなくシート ID を直接貼っても構いません。読み込む
 
 ## 8. AI 分析の仕組み
 
-- 生データではなく **集計結果だけ** を OpenAI に渡す（トークン節約・精度向上・個人情報を出さない）
-- 出力は JSON（`summary` / `highlights` / `concerns` / `actions`）に固定し、Zod で検証。失敗時は最大 2 回リトライ
-- プロンプトの型と Snapshot テストは `.claude/skills/openai-analysis/SKILL.md` を参照
+### 何が出るか
+ダッシュボードの「AI 分析コメント」欄に、対象月の **サマリー / 注目ポイント / 懸念点 / 翌月のアクション提案**（優先度つき）が出ます。文体はコンサルトーンです。
+
+### いつ生成されるか
+**「AI 分析を生成」ボタンを押したときだけ** です。画面を開くだけでは呼び出しません（OpenAI は呼ぶたびに課金されるため）。
+一度作った月はデータベース（`reports` テーブル）に保存され、次からは保存済みのものが表示されます。作り直したいときは「再生成」を押します。
+
+### 仕組み
+- 生データではなく **集計結果だけ** を渡す（トークン節約・精度向上・`customer_id` を外部に出さない）。渡す形は `lib/analysis/build-input.ts`、渡していないことはテストで検証しています
+- 渡すのは対象月を含む **直近 3 か月** の KPI、対象月のカテゴリ別売上、SKU トップ 10
+- 出力は JSON（`summary` / `highlights` / `concerns` / `actions`）に固定（Structured Outputs）し、Zod でも検証。形が違えば **最大 3 回**まで作り直し、それでもだめなら画面にエラーを出して保存しない
+- モデルは `.env.example` の `OPENAI_MODEL`（既定 `gpt-4o-mini`）
+- プロンプトの文言と Snapshot テストの方針は `.claude/skills/openai-analysis/SKILL.md` が唯一の正
+- 実際の生成例は [tests/analysis/__snapshots__/latest-report.json](tests/analysis/__snapshots__/latest-report.json)
 - コストは [§10 月額コスト試算](#10-月額コスト試算) を参照
 
 ## 9. 開発ルール
@@ -318,6 +335,7 @@ app/import/           取り込み画面と Server Action（読み込み・検�
 lib/sheets/           スプレッドシートの ID 取り出し・読み込み・検査
 lib/kpi/              KPI 集計の純粋関数（monthly = 月次、breakdown = カテゴリと SKU、round = 端数処理）
 lib/dashboard/        画面用の準備（load-sales-rows = DB からの読み出し、format = 表示の整形、select-month = 表示する月の決定）
+lib/analysis/         AI 分析（build-input = 渡すデータの組み立て、prompt = 指示文、generate-report = OpenAI 呼び出し、report-schema = 出力の形）
 lib/sales-row.ts      売上 1 行の型（取り込み側と集計側の共通）
 lib/env.ts            環境変数の読み込み。未設定なら日本語で案内して止める
 lib/auth/             ログインが要るかの判定、エラー文の日本語化
@@ -344,6 +362,12 @@ Tailwind 4 には `tailwind.config.ts` がなく、色は CSS に直接書きま
 ## 10. 月額コスト試算
 
 Task 8 で確定。目安：Vercel Hobby（0 円）+ Supabase Free（0 円）+ OpenAI（月 100 回で約 10 円）= **5,000 円以内**。
+
+### AI 分析 1 回あたりのコスト（2026-09-13 に公式価格を確認）
+`gpt-4o-mini` は入力 $0.15 / 100 万トークン、出力 $0.60 / 100 万トークン。
+1 回の生成で入力 約 1,500 トークン・出力 約 500 トークンなので、**1 回あたり約 0.08 円（1 円未満）**。
+毎月 100 回生成しても約 10 円です。生成はボタンを押したときだけなので、画面を何度開いても増えません。
+価格は改定されることがあるため、金額を書き換えるときは https://developers.openai.com/api/docs/pricing を確認してください。
 
 ## 11. Phase 2 ロードマップ
 
@@ -376,6 +400,10 @@ Task 8 で確定。目安：Vercel Hobby（0 円）+ Supabase Free（0 円）+ O
 | git で `CRLF will be replaced by LF` と警告が出る | Windows の改行コード（CRLF）を `.gitattributes` の設定で LF に統一するときの通知。無視してよい。逆に `LF will be replaced by CRLF` と出たら `.gitattributes` が効いていないので確認する |
 | ダッシュボードの数字が思ったより少ない・多い | 集計対象は **いちばん新しい取り込み 1 件だけ**。その月だけを貼ったシートを取り込むと、過去の月が消える（[§6 ③](#6-スプレッドシートの準備方法) を参照）。取り込み画面の履歴で、最後に取り込んだシート名と件数を確認する |
 | 「売上データを読み込めませんでした」と出る | 一時的な通信エラーのほか、1 回の取り込みが 5 万行を超えると出る。行数を減らすか、期間を分けて取り込む |
+| 「AI 分析の生成に失敗しました」と出る | 3 回試しても形が整わなかったときのメッセージ。時間をおいて再実行する。続くなら `.env.local` の `OPENAI_API_KEY` と、OpenAI 側の残高（Billing）を確認する |
+| AI 分析のボタンを押しても何も起きない | 生成には 10 秒ほどかかる。ボタンが「生成中…」になっていれば動いている |
+| `pnpm test:analysis` が「スキップ」と出る | `.env.local` に `OPENAI_API_KEY` が無い。キーを設定すると実行される（実行するたびに少額の課金が発生する） |
+| SQL Editor で `column "target_month" contains null values` と出る | `reports` に古い行が残っている。中身を確認してから消すか、月を埋めてから `0004` を Run する |
 | グラフだけが表示されない | グラフはブラウザ側で描画するため、JavaScript が無効だと出ない。KPI カードと SKU 表は表示される |
 | hooks が「pnpm が見つかりません」と言う | `npm i -g pnpm` を実行し、Claude Code を再起動する |
 | hooks が動かない | `node -v` で Node が入っているか確認。`.claude/settings.json` の JSON が壊れていないか `node -e "JSON.parse(require('fs').readFileSync('.claude/settings.json','utf8'))"` で確認 |

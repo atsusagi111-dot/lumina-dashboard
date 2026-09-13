@@ -82,7 +82,12 @@ describe("売上明細の読み出し", () => {
   it("まだ 1 件も取り込んでいなければ、空の結果を返す（エラーではない）", async () => {
     const { supabase } = createFakeSupabase({ latestUpload: null });
 
-    await expect(loadSalesRows(supabase)).resolves.toEqual({ ok: true, rows: [], uploadedAt: null });
+    await expect(loadSalesRows(supabase)).resolves.toEqual({
+      ok: true,
+      rows: [],
+      uploadId: null,
+      uploadedAt: null,
+    });
   });
 
   it("取り込み履歴の読み込みに失敗したら ok: false を返す（0 件と区別する）", async () => {
@@ -186,5 +191,6 @@ describe("売上明細の読み出し", () => {
     const result = await loadSalesRows(supabase);
 
     expect(result.ok && result.uploadedAt).toBe("2025-12-01T00:00:00Z");
+    expect(result.ok && result.uploadId).toBe("u1");
   });
 });

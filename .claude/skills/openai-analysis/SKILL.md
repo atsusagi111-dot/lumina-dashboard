@@ -18,7 +18,7 @@ description: OpenAI API で月次集計から AI 分析コメント（サマリ�
   const report = completion.choices[0].message.parsed; // 検証済みの型付きオブジェクト
   ```
   （手書きするなら `response_format: { type: "json_schema", json_schema: { name, schema, strict: true } }` の形。`json_schema` の入れ子を忘れると 400 エラーになる）
-- 実装場所：`lib/analysis/prompt.ts`（system プロンプト + スキーマ）、`lib/analysis/generate-report.ts`（呼び出し + リトライ）、`app/.../actions.ts`（Server Action）。
+- 実装場所：`lib/analysis/prompt.ts`（system プロンプト）、`lib/analysis/report-schema.ts`（Zod スキーマ）、`lib/analysis/build-input.ts`（渡すデータの組み立て）、`lib/analysis/generate-report.ts`（呼び出し + リトライ）、`app/analysis-actions.ts`（Server Action）。
 
 ## system プロンプト（固定。変更時は Snapshot テストを必ず回す）
 
@@ -42,6 +42,7 @@ description: OpenAI API で月次集計から AI 分析コメント（サマリ�
 - アクション提案は実行可能な具体策にする
   （「広告を強化」ではなく「アウターの Instagram 広告予算を 30% 増額」のレベル）
 - 前月との比較、カテゴリ別の貢献度に必ず触れる
+- 渡されたデータに無い期間（前年同月・年間累計など）には言及しない
 ```
 
 ## user メッセージに渡す集計データの形
@@ -63,6 +64,9 @@ description: OpenAI API で月次集計から AI 分析コメント（サマリ�
 ## JSON スキーマと検証
 - Zod で `ReportSchema` を定義：`summary: string(max 300)`, `highlights: string[]（1〜5）`, `concerns: string[]（0〜3）`, `actions: { priority: "high"|"medium"|"low", action: string }[]（1〜5）`
 - `chat.completions.parse` + `zodResponseFormat` を使うと検証済みの `message.parsed` が返る。`parsed` が `null`（スキーマ不一致・拒否応答）なら **最大 2 回リトライ**（合計 3 回まで）。手動の `JSON.parse` は不要。
+- ただし実装では、返ってきた `parsed` を **もう一度 `ReportSchema.safeParse` に通す**。SDK の検証に頼り切らず、空文字や項目数の違反をこちら側でも弾くため。
+- リトライの間は 1 秒 → 2 秒待つ（混雑・429 対策）。認証エラー（401 / 403 / 404）は待っても直らないので、その場で打ち切る。
+- `repeatRate` と `share` は、買った人が 0 人・売上が 0 円の月に `null` になる（KPI の定義どおり。数値固定ではない）。
 - 3 回とも失敗したら「AI 分析の生成に失敗しました。時間をおいて再実行してください」を画面に表示し、`reports` には保存しない。
 - 成功したら `reports` テーブルに保存し、同じ `upload_id` に対しては再生成ボタンを押さない限り再呼び出ししない（コスト節約）。
 
@@ -72,7 +76,9 @@ description: OpenAI API で月次集計から AI 分析コメント（サマリ�
   1. `tests/fixtures/sample-sales.csv` → KPI 集計 → OpenAI 呼び出し
   2. スキーマ検証が通ること
   3. **内容チェック**（LLM の出力は毎回少し変わるため、完全一致ではなくキーワードで判定）：
-     - `summary` または `highlights` に「アウター」が含まれる（11 月はアウターが牽引しているため）
+     - `summary` または `highlights` に「アウター」が含まれる（11 月はアウターが牽引しているため）。
+       実装の判定は `アウター|ウールコート|ダウン`。カテゴリ名ではなく商品名で書かれることがあり、
+       それは誤りではないため（見たいのは「牽引要因を拾えているか」）
      - 前月比に触れている（「前月比」「%」「倍」のいずれかを含む）
      - `actions` に `priority: "high"` が 1 つ以上ある
   4. 生成結果を `tests/analysis/__snapshots__/latest-report.json` に保存し、人が読んで確認できるようにする（このファイルの差分はテスト失敗にしない）

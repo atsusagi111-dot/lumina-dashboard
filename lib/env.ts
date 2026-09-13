@@ -44,3 +44,20 @@ export function googleServiceAccountEmail(): string {
 export function googlePrivateKey(): string {
   return required("GOOGLE_PRIVATE_KEY", process.env.GOOGLE_PRIVATE_KEY).replace(/\\n/g, "\n");
 }
+
+/** OpenAI の API キー。サーバー側だけで使う（NEXT_PUBLIC_ を付けないこと） */
+export function openaiApiKey(): string {
+  return required("OPENAI_API_KEY", process.env.OPENAI_API_KEY);
+}
+
+/**
+ * 使う OpenAI のモデル名。未設定なら既定値を使う。
+ *
+ * ここだけ required にしないのは、キーと違って「無ければ動かない」ものではなく、
+ * 値を変えたい人だけが .env.local に書けばよい設定のため。
+ */
+export const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
+
+export function openaiModel(): string {
+  return process.env.OPENAI_MODEL || DEFAULT_OPENAI_MODEL;
+}

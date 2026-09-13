@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
@@ -9,6 +9,9 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./tests/setup.ts"],
     include: ["tests/**/*.test.{ts,tsx}"],
+    // Snapshot テストは実際に OpenAI を呼ぶ（＝課金される）ので、普段の pnpm test では走らせない。
+    // 実行するのは pnpm test:analysis（vitest.analysis.config.mts）のときだけ
+    exclude: [...configDefaults.exclude, "tests/**/*.snapshot.test.ts"],
   },
   resolve: {
     // tsconfig.json の "@/*" と同じ意味にする。
