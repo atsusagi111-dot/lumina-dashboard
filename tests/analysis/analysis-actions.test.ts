@@ -80,11 +80,20 @@ describe("AI 分析の生成（Server Action）", () => {
     expect(state.status).toBe("success");
     expect(upsert).toHaveBeenCalledTimes(1);
     expect(upsert.mock.calls[0][0]).toMatchObject({
+      user_id: "user-1",
       upload_id: "upload-1",
       target_month: "2025-11",
       summary: REPORT.summary,
     });
-    expect(upsert.mock.calls[0][1]).toEqual({ onConflict: "upload_id,target_month" });
+    expect(upsert.mock.calls[0][1]).toEqual({ onConflict: "user_id,target_month" });
+  });
+
+  it("分析は取り込みではなく「人 × 月」で保存する（取り込み直しても消えないようにするため）", async () => {
+    await generateAnalysis(INITIAL_ANALYSIS_STATE, formDataFor("2025-11"));
+
+    const saved = upsert.mock.calls[0][0];
+    expect(saved.user_id).toBe("user-1");
+    expect(upsert.mock.calls[0][1].onConflict).not.toContain("upload_id");
   });
 
   it("売上データが読めなければ、OpenAI を呼ばない", async () => {

@@ -22,7 +22,7 @@ export async function generateAnalysis(
   formData: FormData,
 ): Promise<AnalysisState> {
   // proxy でも未ログインは弾いているが、データを触る場所でもう一度確かめる
-  const { supabase } = await requireUser();
+  const { supabase, userId } = await requireUser();
 
   const loaded = await loadSalesRows(supabase);
   if (!loaded.ok) {
@@ -45,7 +45,7 @@ export async function generateAnalysis(
     };
   }
 
-  const cooldown = await findCooldown(supabase, loaded.uploadId, targetMonth);
+  const cooldown = await findCooldown(supabase, userId, targetMonth);
   if (cooldown) return cooldown;
 
   const generated = await generateReport(
@@ -58,7 +58,7 @@ export async function generateAnalysis(
   );
   if (!generated.ok) return { status: "error", message: generated.message };
 
-  const saved = await saveReport(supabase, loaded.uploadId, targetMonth, generated.report);
+  const saved = await saveReport(supabase, userId, loaded.uploadId, targetMonth, generated.report);
   if (!saved) {
     return { status: "error", message: "AI 分析は作れましたが、保存に失敗しました。もう一度お試しください。" };
   }
@@ -67,15 +67,18 @@ export async function generateAnalysis(
   return { status: "success", message: "AI 分析を作成しました。" };
 }
 
-/** 生成した分析を保存する（同じ取り込み・同じ月があれば上書き）。成功したら true */
+/** 生成した分析を保存する（同じ人の同じ月があれば上書き）。成功したら true */
 async function saveReport(
   supabase: SupabaseClient<Database>,
+  userId: string,
   uploadId: string,
   targetMonth: string,
   report: Report,
 ): Promise<boolean> {
   const { error } = await supabase.from("reports").upsert(
     {
+      user_id: userId,
+      // どのデータで作ったかの記録。取り込み直しても分析は残す
       upload_id: uploadId,
       target_month: targetMonth,
       summary: report.summary,
@@ -86,7 +89,7 @@ async function saveReport(
       // （DB の default now() は、新しく作るときにしか効かないため）
       generated_at: new Date().toISOString(),
     },
-    { onConflict: "upload_id,target_month" },
+    { onConflict: "user_id,target_month" },
   );
 
   if (error) console.error("AI 分析の保存に失敗しました", error);
@@ -99,13 +102,13 @@ async function saveReport(
  */
 async function findCooldown(
   supabase: SupabaseClient<Database>,
-  uploadId: string,
+  userId: string,
   targetMonth: string,
 ): Promise<AnalysisState | null> {
   const { data, error } = await supabase
     .from("reports")
     .select("generated_at")
-    .eq("upload_id", uploadId)
+    .eq("user_id", userId)
     .eq("target_month", targetMonth)
     .maybeSingle();
 
