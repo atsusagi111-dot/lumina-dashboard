@@ -1,0 +1,87 @@
+# GitHub Actions の設定ファイル。
+#
+# 何をするもの？
+#   GitHub に push したときに、GitHub のパソコン（ランナー）がこのプロジェクトを取ってきて、
+#   手元で実行しているのと同じ検査（Lint・型チェック・テスト・ビルド）を自動で流します。
+#   1 つでも失敗すると赤いバツが付き、すぐ気づけます。
+#
+# ここで OpenAI は呼びません（pnpm test:analysis は実行するたびに課金されるため、手元で実行する）。
+# 料金の目安は README §10 を参照（このワークフローには書かない。同じ数字を 2 箇所に置かないため）。
+
+name: CI
+
+on:
+  push:
+    # feature/** も対象にする理由：この案件は Pull Request を作らず、
+    # 手元で main に merge する進め方（CLAUDE.md §1）なので、
+    # main への push だけを見ていると「壊れたものが main に入った後」にしか気づけない
+    branches: [main, "feature/**"]
+  pull_request:
+    branches: [main]
+
+# このワークフローは読むだけ。書き込み権限は渡さない（万一の事故を防ぐ）
+permissions:
+  contents: read
+
+# 同じブランチで続けて push したとき、作業中のブランチは古い実行を止めて最後の 1 回だけ走らせる。
+# main は 1 コミットずつ結果を残したいので、途中で止めない
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  check:
+    name: 型チェック・Lint・テスト・ビルド
+    runs-on: ubuntu-latest
+    # 何かの拍子に固まったまま何時間も回り続けないようにする
+    timeout-minutes: 15
+
+    steps:
+      # ① リポジトリの中身をランナーに取ってくる
+      - name: ソースコードを取得
+        uses: actions/checkout@v7
+
+      # ② pnpm を用意する。バージョンは package.json の packageManager から読まれる。
+      #    次の setup-node より先に置くこと（順番を逆にすると pnpm のキャッシュ場所を見つけられず失敗する）
+      - name: pnpm を用意
+        uses: pnpm/action-setup@v6
+
+      # ③ Node.js を用意する。バージョンは .nvmrc に書いてある値を使う（手元・CI・Vercel を揃えるため）
+      - name: Node.js を用意
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      # ④ 依存パッケージを入れる。
+      #    --frozen-lockfile は「pnpm-lock.yaml のとおりに入れる」という意味。
+      #    package.json だけ更新して lock ファイルを更新し忘れた場合は、ここで失敗する
+      - name: 依存パッケージをインストール
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint（書き方の検査）
+        run: pnpm lint
+
+      - name: 型チェック
+        run: pnpm type-check
+
+      - name: テスト
+        run: pnpm test
+
+      # ⑤ 本番と同じビルドが通るかを確かめる。
+      #    ここで渡しているのは形だけ合わせた **ダミーの値** で、本物の鍵ではありません
+      #    （本物は Vercel の環境変数に登録する。README §5-6 を参照）。
+      #    いまは全ページが「開かれたときに作る」方式なので、ビルド中に値の中身は使われません。
+      #    それでも .env.example のキーをひととおり渡しておくのは、
+      #    将来どこか 1 ページでもビルド時に環境変数を読むようになったとき、
+      #    手元（.env.local あり）では気づかず CI だけが落ちる事故を防ぐためです。
+      - name: 本番ビルド
+        run: pnpm build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_dummy_for_build
+          SUPABASE_SECRET_KEY: sb_secret_dummy_for_build
+          OPENAI_API_KEY: sk-dummy-for-build
+          OPENAI_MODEL: gpt-4o-mini
+          GOOGLE_SERVICE_ACCOUNT_EMAIL: dummy@example.iam.gserviceaccount.com
+          GOOGLE_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\ndummy\n-----END PRIVATE KEY-----\n"
