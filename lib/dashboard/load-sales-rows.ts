@@ -35,6 +35,8 @@ export type LoadSalesRowsResult =
   | {
       ok: true;
       rows: SalesRow[];
+      /** 集計に使った取り込みの ID。1 件も取り込んでいなければ null（AI 分析の保存先を決めるのに使う） */
+      uploadId: string | null;
       /** 集計に使った取り込みの日時（ISO 文字列）。1 件も取り込んでいなければ null */
       uploadedAt: string | null;
     }
@@ -100,7 +102,7 @@ export async function loadSalesRows(
 ): Promise<LoadSalesRowsResult> {
   const latestUpload = await findLatestUpload(supabase);
   if (latestUpload === "error") return { ok: false };
-  if (!latestUpload) return { ok: true, rows: [], uploadedAt: null };
+  if (!latestUpload) return { ok: true, rows: [], uploadId: null, uploadedAt: null };
 
   const rows: SalesRow[] = [];
   /** 明細の総数。1 ページ目の応答で分かる */
@@ -141,5 +143,5 @@ export async function loadSalesRows(
     for (const row of data) rows.push(toSalesRow(row));
   }
 
-  return { ok: true, rows, uploadedAt: latestUpload.uploaded_at };
+  return { ok: true, rows, uploadId: latestUpload.id, uploadedAt: latestUpload.uploaded_at };
 }

@@ -60,6 +60,8 @@ export type Database = {
         Row: {
           id: string;
           upload_id: string;
+          /** 対象の月（"2025-11" の形） */
+          target_month: string;
           summary: string;
           highlights: unknown;
           concerns: unknown;
@@ -69,6 +71,7 @@ export type Database = {
         Insert: {
           id?: string;
           upload_id: string;
+          target_month: string;
           summary: string;
           highlights?: unknown;
           concerns?: unknown;

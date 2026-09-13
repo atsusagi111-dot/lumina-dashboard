@@ -1,0 +1,124 @@
+{
+  "generatedAt": "2026-09-13T03:08:21.434Z",
+  "input": {
+    "targetMonth": "2025-11",
+    "monthly": [
+      {
+        "month": "2025-09",
+        "revenue": 148400,
+        "grossProfit": 93400,
+        "repeatRate": 0
+      },
+      {
+        "month": "2025-10",
+        "revenue": 147500,
+        "grossProfit": 92600,
+        "repeatRate": 38.5
+      },
+      {
+        "month": "2025-11",
+        "revenue": 264700,
+        "grossProfit": 163100,
+        "repeatRate": 46.7
+      }
+    ],
+    "momChange": {
+      "revenue": 79.5,
+      "grossProfit": 76.1
+    },
+    "byCategory": [
+      {
+        "category": "アウター",
+        "revenue": 198200,
+        "share": 74.9
+      },
+      {
+        "category": "トップス",
+        "revenue": 35600,
+        "share": 13.4
+      },
+      {
+        "category": "ボトムス",
+        "revenue": 16100,
+        "share": 6.1
+      },
+      {
+        "category": "アクセサリー",
+        "revenue": 14800,
+        "share": 5.6
+      }
+    ],
+    "topSkus": [
+      {
+        "sku": "LUM-OUT-01",
+        "productName": "ウールコート",
+        "revenue": 99200,
+        "quantity": 4
+      },
+      {
+        "sku": "LUM-OUT-02",
+        "productName": "ダウンジャケット",
+        "revenue": 99000,
+        "quantity": 5
+      },
+      {
+        "sku": "LUM-TOP-02",
+        "productName": "リネンブラウス",
+        "revenue": 20400,
+        "quantity": 3
+      },
+      {
+        "sku": "LUM-TOP-01",
+        "productName": "オーガニックコットンTシャツ",
+        "revenue": 15200,
+        "quantity": 4
+      },
+      {
+        "sku": "LUM-ACC-01",
+        "productName": "レザーベルト",
+        "revenue": 9000,
+        "quantity": 2
+      },
+      {
+        "sku": "LUM-BTM-01",
+        "productName": "テーパードパンツ",
+        "revenue": 8900,
+        "quantity": 1
+      },
+      {
+        "sku": "LUM-BTM-02",
+        "productName": "フレアスカート",
+        "revenue": 7200,
+        "quantity": 1
+      },
+      {
+        "sku": "LUM-ACC-02",
+        "productName": "シルクスカーフ",
+        "revenue": 5800,
+        "quantity": 1
+      }
+    ]
+  },
+  "report": {
+    "summary": "2025年11月は、売上が約264,700円と前月比で約79.5%の増加を見せ、過去最高の月となりました。特に、アウターカテゴリが全体の約74.9%を占め、リピート率も46.7%に上昇しており、顧客の定着が進んでいることが確認できました。これは秋冬商品の需要が高まったことが要因と考えられます。",
+    "highlights": [
+      "11月の売上は約264,700円で79.5%の増加",
+      "アウター籍が全体の約74.9%を占める",
+      "リピート率が46.7%に上昇"
+    ],
+    "concerns": [
+      "ボトムスとアクセサリーカテゴリの売上シェアが低い",
+      "リピート率が次月も継続するか不透明"
+    ],
+    "actions": [
+      {
+        "priority": "high",
+        "action": "ボトムスとアクセサリーのプロモーションを強化し、ターゲットグループに向けたInstagram広告を40%増額"
+      },
+      {
+        "priority": "medium",
+        "action": "リピート率向上のため、購入者向けに割引クーポンを配布し、再購入を促す"
+      }
+    ]
+  }
+}
